@@ -9,6 +9,12 @@ const CategoryMasterSchema = new mongoose.Schema(
     categoryName: {
         type: String,
     },
+    SrNo: {
+      type: Number,
+    },
+    logo: {
+      type: String,
+    },
     IsActive: {
       type: Boolean,
     },
