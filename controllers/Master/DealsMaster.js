@@ -1,20 +1,20 @@
-const ClientMaster = require("../../models/Master/ClientMaster");
+const DealsMaster = require("../../models/Master/DealsMaster");
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-exports.getClientMaster = async (req, res) => {
+exports.getDealsMaster = async (req, res) => {
   try {
-    const find = await ClientMaster.findOne({ _id: req.params._id }).exec();
+    const find = await DealsMaster.findOne({ _id: req.params._id }).exec();
     res.json(find);
   } catch (error) {
     return res.status(500).send(error);
   }
 };
 
-exports.createClientMaster = async (req, res) => {
+exports.createDealsMaster = async (req, res) => {
   try {
-    const uploadDir = `${__basedir}/uploads/ClientMaster`;
+    const uploadDir = `${__basedir}/uploads/DealsMaster`;
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -22,13 +22,15 @@ exports.createClientMaster = async (req, res) => {
     let logo = req.file ? await compressImage(req.file, uploadDir) : null;
    
     let { 
-      clientName,
+      startdate,
+      enddate,
       SrNo,
       IsActive,
     } = req.body;
 
-      const newCategory = new ClientMaster({
-        clientName,
+      const newCategory = new DealsMaster({
+        startdate,
+        enddate,
         SrNo,
         IsActive,
         logo : logo,
@@ -47,16 +49,16 @@ exports.createClientMaster = async (req, res) => {
   }
 };
 
-exports.listClientMaster = async (req, res) => {
+exports.listDealsMaster = async (req, res) => {
   try {
-    const list = await ClientMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await DealsMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
   }
 };
 
-exports.listClientMasterByParams = async (req, res) => {
+exports.listDealsMasterByParams = async (req, res) => {
   try {
     let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
 
@@ -131,7 +133,7 @@ exports.listClientMasterByParams = async (req, res) => {
       ].concat(query);
     }
 
-    const list = await ClientMaster.aggregate(query);
+    const list = await DealsMaster.aggregate(query);
 
     res.json(list);
   } catch (error) {
@@ -140,17 +142,17 @@ exports.listClientMasterByParams = async (req, res) => {
   }
 };
 
-exports.updateClientMaster = async (req, res) => {
+exports.updateDealsMaster = async (req, res) => {
   try {
     let logo = req.file
-      ? `uploads/ClientMaster/${req.file.filename}`
+      ? `uploads/DealsMaster/${req.file.filename}`
       : null;
     let fieldvalues = { ...req.body };
     if (logo != null) {
       fieldvalues.logo = logo;
     }
    
-    const update = await ClientMaster.findOneAndUpdate(
+    const update = await DealsMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
@@ -163,9 +165,9 @@ exports.updateClientMaster = async (req, res) => {
   }
 };
 
-exports.removeClientMaster = async (req, res) => {
+exports.removeDealsMaster = async (req, res) => {
   try {
-    const del = await ClientMaster.findOneAndRemove({
+    const del = await DealsMaster.findOneAndRemove({
       _id: req.params._id,
     });
     res.json(del);
@@ -174,9 +176,9 @@ exports.removeClientMaster = async (req, res) => {
   }
 };
 
-exports.listActiveClients = async (req , res) => {
+exports.listActiveDeals = async (req , res) => {
   try {
-    const list = await ClientMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
+    const list = await DealsMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (err) {
     res.status(400).send(err)
@@ -210,7 +212,7 @@ async function compressImage(file, uploadDir) {
     fs.unlinkSync(filePath);
     fs.renameSync(compressedPath, filePath);
 
-    return `uploads/ClientMaster/${file.filename}`;
+    return `uploads/DealsMaster/${file.filename}`;
   } catch (error) {
     console.log('Error compressing image:', error);
     return null;
