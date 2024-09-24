@@ -1,21 +1,21 @@
-const CategoryMaster = require("../../models/Category/CategoryMaster");
+const SubCategoryMaster = require("../../models/Category/SubCategory");
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
+const { json } = require("express");
 
-
-exports.getCategoryMaster = async (req, res) => {
+exports.getSubCategoryMaster = async (req, res) => {
   try {
-    const find = await CategoryMaster.findOne({ _id: req.params._id }).exec();
+    const find = await SubCategoryMaster.findOne({ _id: req.params._id }).exec();
     res.json(find);
   } catch (error) {
     return res.status(500).send(error);
   }
 };
 
-exports.createCategoryMaster = async (req, res) => {
+exports.createSubCategoryMaster = async (req, res) => {
   try {
-    const uploadDir = `${__basedir}/uploads/CategoryMaster`;
+    const uploadDir = `${__basedir}/uploads/SubCategoryMaster`;
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -25,13 +25,15 @@ exports.createCategoryMaster = async (req, res) => {
     let { 
       categoryName,
       SrNo,
+      subCategoryName,
       IsActive,
     } = req.body;
 
-      const newCategory = new CategoryMaster({
+      const newCategory = new SubCategoryMaster({
         categoryName,
         SrNo,
         IsActive,
+        subCategoryName,
         logo : logo,
       });
 
@@ -40,25 +42,25 @@ exports.createCategoryMaster = async (req, res) => {
       return res.status(200).json({
         isOk: true,
         data: Category,
-        message: "Art piece created successfully",
+        message: "Sub Category created successfully",
       });
   } catch (err) {
     console.log(err);
     return res.status(500).send("Internal Server Error");
   }
 };
- 
 
-exports.listCategoryMaster = async (req, res) => {
+
+exports.listSubCategoryMaster = async (req, res) => {
   try {
-    const list = await CategoryMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await SubCategoryMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
   }
 };
 
-exports.listCategoryMasterByParams = async (req, res) => {
+exports.listSubCategoryMasterByParams = async (req, res) => {
   try {
     let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
 
@@ -66,7 +68,20 @@ exports.listCategoryMasterByParams = async (req, res) => {
       {
         $match: { isActive: isActive },
       },
-
+      {
+        $lookup: {
+          from: 'categorymasters',
+          localField: 'categoryName', 
+          foreignField: '_id', 
+          as: 'categoryDetails' 
+        }
+      },
+      {
+        $unwind: {
+          path: "$categoryDetails",
+          preserveNullAndEmptyArrays: true
+        },
+      },
       {
         $facet: {
           stage1: [
@@ -101,14 +116,18 @@ exports.listCategoryMasterByParams = async (req, res) => {
         },
       },
     ];
+
     if (match) {
       query = [
         {
           $match: {
             $or: [
               {
-                categoryName: { $regex: match, $options: "i" },
-              },      
+                'categoryDetails.categoryName': { $regex: match, $options: "i" },
+              },
+              {
+                subCategoryName: { $regex: match, $options: "i" },
+              }      
             ],
           },
         },
@@ -132,8 +151,8 @@ exports.listCategoryMasterByParams = async (req, res) => {
         },
       ].concat(query);
     }
-
-    const list = await CategoryMaster.aggregate(query);
+    console.log(JSON.stringify(query));
+    const list = await SubCategoryMaster.aggregate(query);
 
     res.json(list);
   } catch (error) {
@@ -142,32 +161,32 @@ exports.listCategoryMasterByParams = async (req, res) => {
   }
 };
 
-exports.updateCategoryMaster = async (req, res) => {
+exports.updateSubCategoryMaster = async (req, res) => {
   try {
     let logo = req.file
-      ? `uploads/CategoryMaster/${req.file.filename}`
+      ? `uploads/SubCategoryMaster/${req.file.filename}`
       : null;
     let fieldvalues = { ...req.body };
     if (logo != null) {
       fieldvalues.logo = logo;
     }
    
-    const update = await CategoryMaster.findOneAndUpdate(
+    const update = await SubCategoryMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
     );
     res.json( {isOk: true,
       data: update,
-      message: "Art piece updated successfully",});
+      message: "Sub Category updated successfully",});
   } catch (err) {
     res.status(400).send(err);
   }
 };
 
-exports.removeCategoryMaster = async (req, res) => {
+exports.removeSubCategoryMaster = async (req, res) => {
   try {
-    const del = await CategoryMaster.findOneAndRemove({
+    const del = await SubCategoryMaster.findOneAndRemove({
       _id: req.params._id,
     });
     res.json(del);
@@ -176,14 +195,6 @@ exports.removeCategoryMaster = async (req, res) => {
   }
 };
 
-exports.listActiveCategories = async (req , res) => {
-  try {
-    const list = await CategoryMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
-    res.json(list);
-  } catch (err) {
-    res.status(400).send(err)
-  }
-}
 
 async function compressImage(file, uploadDir) {
   const filePath = path.join(uploadDir, file.filename);
@@ -211,11 +222,10 @@ async function compressImage(file, uploadDir) {
     fs.unlinkSync(filePath);
     fs.renameSync(compressedPath, filePath);
 
-    return `uploads/CategoryMaster/${file.filename}`;
+    return `uploads/SubCategoryMaster/${file.filename}`;
   } catch (error) {
     console.log('Error compressing image:', error);
     return null;
   }
 }
-
 

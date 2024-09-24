@@ -1,21 +1,21 @@
-const CategoryMaster = require("../../models/Category/CategoryMaster");
+const ClientMaster = require("../../models/Master/ClientMaster");
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
 
-exports.getCategoryMaster = async (req, res) => {
+exports.getClientMaster = async (req, res) => {
   try {
-    const find = await CategoryMaster.findOne({ _id: req.params._id }).exec();
+    const find = await ClientMaster.findOne({ _id: req.params._id }).exec();
     res.json(find);
   } catch (error) {
     return res.status(500).send(error);
   }
 };
 
-exports.createCategoryMaster = async (req, res) => {
+exports.createClientMaster = async (req, res) => {
   try {
-    const uploadDir = `${__basedir}/uploads/CategoryMaster`;
+    const uploadDir = `${__basedir}/uploads/ClientMaster`;
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -23,13 +23,13 @@ exports.createCategoryMaster = async (req, res) => {
     let logo = req.file ? await compressImage(req.file, uploadDir) : null;
    
     let { 
-      categoryName,
+      clientName,
       SrNo,
       IsActive,
     } = req.body;
 
-      const newCategory = new CategoryMaster({
-        categoryName,
+      const newCategory = new ClientMaster({
+        clientName,
         SrNo,
         IsActive,
         logo : logo,
@@ -49,16 +49,16 @@ exports.createCategoryMaster = async (req, res) => {
 };
  
 
-exports.listCategoryMaster = async (req, res) => {
+exports.listClientMaster = async (req, res) => {
   try {
-    const list = await CategoryMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await ClientMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
   }
 };
 
-exports.listCategoryMasterByParams = async (req, res) => {
+exports.listClientMasterByParams = async (req, res) => {
   try {
     let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
 
@@ -107,7 +107,7 @@ exports.listCategoryMasterByParams = async (req, res) => {
           $match: {
             $or: [
               {
-                categoryName: { $regex: match, $options: "i" },
+                clientName: { $regex: match, $options: "i" },
               },      
             ],
           },
@@ -133,7 +133,7 @@ exports.listCategoryMasterByParams = async (req, res) => {
       ].concat(query);
     }
 
-    const list = await CategoryMaster.aggregate(query);
+    const list = await ClientMaster.aggregate(query);
 
     res.json(list);
   } catch (error) {
@@ -142,17 +142,17 @@ exports.listCategoryMasterByParams = async (req, res) => {
   }
 };
 
-exports.updateCategoryMaster = async (req, res) => {
+exports.updateClientMaster = async (req, res) => {
   try {
     let logo = req.file
-      ? `uploads/CategoryMaster/${req.file.filename}`
+      ? `uploads/ClientMaster/${req.file.filename}`
       : null;
     let fieldvalues = { ...req.body };
     if (logo != null) {
       fieldvalues.logo = logo;
     }
    
-    const update = await CategoryMaster.findOneAndUpdate(
+    const update = await ClientMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
@@ -165,9 +165,9 @@ exports.updateCategoryMaster = async (req, res) => {
   }
 };
 
-exports.removeCategoryMaster = async (req, res) => {
+exports.removeClientMaster = async (req, res) => {
   try {
-    const del = await CategoryMaster.findOneAndRemove({
+    const del = await ClientMaster.findOneAndRemove({
       _id: req.params._id,
     });
     res.json(del);
@@ -176,9 +176,9 @@ exports.removeCategoryMaster = async (req, res) => {
   }
 };
 
-exports.listActiveCategories = async (req , res) => {
+exports.listActiveClients = async (req , res) => {
   try {
-    const list = await CategoryMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
+    const list = await ClientMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (err) {
     res.status(400).send(err)
@@ -211,7 +211,7 @@ async function compressImage(file, uploadDir) {
     fs.unlinkSync(filePath);
     fs.renameSync(compressedPath, filePath);
 
-    return `uploads/CategoryMaster/${file.filename}`;
+    return `uploads/ClientMaster/${file.filename}`;
   } catch (error) {
     console.log('Error compressing image:', error);
     return null;
