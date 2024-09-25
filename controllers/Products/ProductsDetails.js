@@ -16,10 +16,7 @@ exports.createProductsDetails = async (req, res) => {
       fs.mkdirSync(`${__basedir}/uploads/Products`);
     }
 
-    let productImage = req.file
-      ? `uploads/Products/${req.file.filename}`
-      : null;
-
+    let productImage = req.file ? await compressImage(req.file, uploadDir) : null;
     let {
       categoryName,
       subCategoryName,
@@ -213,7 +210,7 @@ exports.listProductsDetailsByParams = async (req, res) => {
 exports.updateProductsDetails = async (req, res) => {
   try {
     let productImage = req.file
-      ? `uploads/Products/${req.file.filename}`
+      ? await compressImage(req.file, uploadDir) 
       : null;
     let fieldvalues = { ...req.body };
     if (productImage != null) {
@@ -378,3 +375,37 @@ exports.getUniquefilters = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching unique product details." });
   }
 };
+
+
+async function compressImage(file, uploadDir) {
+  const filePath = path.join(uploadDir, file.filename);
+  const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
+
+  try {
+    let quality = 80;
+    let compressed = false;
+
+    do {
+      await sharp(file.path)
+        .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
+        .jpeg({ quality }) // Adjust the quality to reduce the size
+        .toFile(compressedPath);
+
+      const { size } = fs.statSync(compressedPath);
+      if (size <= 100 * 1024 || quality <= 20) { // Check if size is under 100 KB or quality is too low
+        compressed = true;
+      } else {
+        quality -= 10; // Reduce quality further if size is still too large
+      }
+    } while (!compressed);
+
+    // Replace the original image with the compressed one
+    fs.unlinkSync(filePath);
+    fs.renameSync(compressedPath, filePath);
+
+    return `uploads/ProductImages/${file.filename}`;
+  } catch (error) {
+    console.log('Error compressing image:', error);
+    return null;
+  }
+}
