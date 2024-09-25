@@ -10,7 +10,7 @@ const {
   getCategoryMaster,
   updateCategoryMaster,
   removeCategoryMaster,
-  listActiveCategories
+  listActiveCategories,
 } = require("../controllers/Category/CategoryMaster");
 const multer = require("multer");
 const path= require('path')
@@ -49,5 +49,7 @@ router.put("/auth/update/CategoryMaster/:_id",upload.single("logo"), catchAsync(
 router.delete("/auth/remove/CategoryMaster/:_id", catchAsync(removeCategoryMaster));
 
 router.get("/auth/listActive/Categories" , catchAsync(listActiveCategories));
+
+
 
 module.exports = router;

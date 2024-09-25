@@ -21,24 +21,34 @@ exports.createProductsDetails = async (req, res) => {
       : null;
 
     let {
-      category,
+      categoryName,
+      subCategoryName,
+      brandName,
       productName,
-      productDescription,
+      SKU,
       price,
-      IsSubscriptionProduct,
       IsActive,
-      isOutOfStock,
+      isAvailable,
     } = req.body;
 
+    const alreadyExist = await ProductsDetails.findOne({
+      SKU: req.body.SKU,
+    }).exec();
+    console.log(alreadyExist)
+    if(alreadyExist)
+    {
+      return res.status(200).json({message:"SKU already exist ", isOk:false})
+    }
+
     const add = await new ProductsDetails({
-      category,
+      categoryName,
+      subCategoryName,
+      brandName,
       productImage,
-      productName,
-      productDescription,
-      price,
-      IsSubscriptionProduct,
+      SKU,
+      productName,price,
       IsActive,
-      isOutOfStock,
+      isAvailable,
     }).save();
     res.status(200).json({ isOk: true, data: add, message: "" });
   } catch (err) {
@@ -59,7 +69,7 @@ exports.listProductsDetails = async (req, res) => {
 exports.listProductByCategory = async (req, res) => {
   try {
     const list = await ProductsDetails.find({
-      category: req.params.categoryId,
+      categoryName: req.params.categoryId,
       IsActive: true,
     })
       .sort({ createdAt: -1 })
@@ -85,7 +95,7 @@ exports.listProductsDetailsByParams = async (req, res) => {
       {
         $lookup: {
           from: "categorymasters",
-          localField: "category",
+          localField: "categoryName",
           foreignField: "_id",
           as: "category",
         },
@@ -93,6 +103,34 @@ exports.listProductsDetailsByParams = async (req, res) => {
       {
         $unwind: {
           path: "$category",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "subcategorymasters",
+          localField: "subCategoryName",
+          foreignField: "_id",
+          as: "SubCategoryDetail",
+        },
+      },
+      {
+        $unwind: {
+          path: "$SubCategoryDetail",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "brandmasters",
+          localField: "brandName",
+          foreignField: "_id",
+          as: "brandDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$brandDetails",
           preserveNullAndEmptyArrays: true,
         },
       },
@@ -210,7 +248,7 @@ exports.CategoryProductList = async (req, res) => {
     const { option, categoryid } = req.params;
 
     const list = await ProductsDetails.find({
-      category: categoryid,
+      categoryName: categoryid,
       IsActive: true,
     })
       .sort({ createdAt: -1 })
@@ -252,5 +290,91 @@ exports.CategoryProductList = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(400).send(error);
+  }
+};
+
+exports.brandCount = async (req, res) => {
+  let query = [
+    {
+      $group: {
+        _id: "$brandName", 
+        count: { $sum: 1 } 
+      }
+    },
+    {
+      $lookup: {
+        localField: "_id", 
+        foreignField: "_id", 
+        as: "brandDetails"
+      }
+    },
+    
+    
+    {
+      $sort: { count: -1 }
+    }
+  ];
+
+
+  try {
+    const result = await ProductsDetails.aggregate(query);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while fetching brand counts." });
+  }
+};
+
+
+
+exports.getUniquefilters = async (req, res) => {
+  try {
+    const uniqueValues = await ProductsDetails.aggregate([
+      {
+        $group: {
+          _id: null,
+          uniqueCategoryNames: { $addToSet: "$categoryName" }, // Collect unique category ids
+          uniqueSubCategoryNames: { $addToSet: "$subCategoryName" }, // Collect unique subcategory ids
+          uniqueBrandNames: { $addToSet: "$brandName" }, // Collect unique brand ids
+          uniquePrices: { $addToSet: "$price" }, // Collect unique prices
+        }
+      },
+      {
+        $lookup: {
+          from: "categorymasters", // Collection name for CategoryMaster
+          localField: "uniqueCategoryNames",
+          foreignField: "_id",
+          as: "categories"
+        }
+      },
+      {
+        $lookup: {
+          from: "subcategorymasters", // Collection name for SubCategoryMaster
+          localField: "uniqueSubCategoryNames",
+          foreignField: "_id",
+          as: "subCategories"
+        }
+      },
+      {
+        $lookup: {
+          from: "brandmasters", // Collection name for BrandMaster
+          localField: "uniqueBrandNames",
+          foreignField: "_id",
+          as: "brands"
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          categories: 1, // Include categories after lookup
+          subCategories: 1, // Include subCategories after lookup
+          brands: 1, // Include brands after lookup
+          uniquePrices: 1
+        }
+      }
+    ]);
+
+    res.status(200).json(uniqueValues);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while fetching unique product details." });
   }
 };

@@ -3,6 +3,7 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 const { json } = require("express");
+const { Console } = require("console");
 
 exports.getSubCategoryMaster = async (req, res) => {
   try {
@@ -49,7 +50,16 @@ exports.createSubCategoryMaster = async (req, res) => {
     return res.status(500).send("Internal Server Error");
   }
 };
-
+exports.listActiveCategoriesByCategory = async (req, res) => {
+  try {
+    console.log("reqq",req.params._id);
+    const list = await SubCategoryMaster.find({IsActive : true, categoryName:req.params._id} ).sort({ createdAt: -1 }).exec();
+    res.json(list);
+  } catch (error) {
+    Console.log(error);
+    return res.status(400).send(error);
+  }
+};
 
 exports.listSubCategoryMaster = async (req, res) => {
   try {
@@ -151,7 +161,7 @@ exports.listSubCategoryMasterByParams = async (req, res) => {
         },
       ].concat(query);
     }
-    console.log(JSON.stringify(query));
+    // console.log(JSON.stringify(query));
     const list = await SubCategoryMaster.aggregate(query);
 
     res.json(list);

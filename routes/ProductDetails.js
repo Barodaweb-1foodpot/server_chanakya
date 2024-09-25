@@ -20,6 +20,8 @@ const {
   listProductByFlight,
   listProductByShop,
   CategoryProductList,
+  brandCount,
+  getUniquefilters
 } = require("../controllers/Products/ProductsDetails");
 const multer = require("multer");
 
@@ -100,6 +102,7 @@ router.get(
 
 router.post("/auth/list/product-by-id/:productId", catchAsync(getProductByID));
 
-///
+router.get("/auth/list/brand-count", catchAsync(brandCount));
+router.get("/auth/list/get-filters", catchAsync(getUniquefilters));
 
 module.exports = router;

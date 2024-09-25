@@ -51,7 +51,7 @@ exports.createCategoryMaster = async (req, res) => {
 
 exports.listCategoryMaster = async (req, res) => {
   try {
-    const list = await CategoryMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await CategoryMaster.find({IsActive : true}).sort({ createdAt: -1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -60,11 +60,11 @@ exports.listCategoryMaster = async (req, res) => {
 
 exports.listCategoryMasterByParams = async (req, res) => {
   try {
-    let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
+    let { skip, per_page, sorton, sortdir, match, IsActive } = req.body;
 
     let query = [
       {
-        $match: { isActive: isActive },
+        $match: { IsActive: IsActive },
       },
 
       {
