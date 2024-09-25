@@ -10,6 +10,8 @@ const {
     updateSubCategoryMaster,
     removeSubCategoryMaster,
     listSubCategoryMasterByParams,
+    
+  listActiveCategoriesByCategory,
 
 } = require("../controllers/Category/SubCategoryMaster");
 const multer = require("multer");
@@ -47,5 +49,7 @@ router.get("/auth/get/SubCategoryMaster/:_id", catchAsync(getSubCategoryMaster))
 router.put("/auth/update/SubCategoryMaster/:_id",upload.single("logo"), catchAsync(updateSubCategoryMaster));
 
 router.delete("/auth/remove/SubCategoryMaster/:_id", catchAsync(removeSubCategoryMaster));
+
+router.get("/auth/listData/SubCategoryByCategory/:_id" , catchAsync(listActiveCategoriesByCategory));
 
 module.exports = router;

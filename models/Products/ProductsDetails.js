@@ -11,9 +11,19 @@ const mongoose = require("mongoose");
 const { Schema, model, Types } = require("mongoose");
 const ProductDetailsSchema = new mongoose.Schema(
   {
-    category: {
+    categoryName: {
       type: Schema.Types.ObjectId,
       ref: "CategoryMaster",
+      required: true,
+    },
+    subCategoryName: {
+      type: Schema.Types.ObjectId,
+      ref: "SubCategoryMaster",
+      required: true,
+    },
+    brandName: {
+      type: Schema.Types.ObjectId,
+      ref: "BrandMaster",
       required: true,
     },
     productName: {
@@ -24,25 +34,25 @@ const ProductDetailsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    productDescription: {
+    SKU: {
       type: String,
+      // required: true,
     },
+
     price: {
       type: Number,
-      required: true,
+      // required: true,
+    },
+    isAvailable: {
+      type: Boolean,
+      default: false,
     },
     IsActive: {
       type: Boolean,
       default: false,
     },
-    IsSubscriptionProduct: {
-      type: Boolean,
-      default: false,
-    },
-    isOutOfStock: {
-      type: Boolean,
-      default: false,
-    },
+  
+   
   },
   { timestamps: true }
 );
