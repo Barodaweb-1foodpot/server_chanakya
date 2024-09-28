@@ -51,7 +51,7 @@ exports.createClientMaster = async (req, res) => {
 
 exports.listClientMaster = async (req, res) => {
   try {
-    const list = await ClientMaster.find({isActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await ClientMaster.find({IsActive : true}).sort({ createdAt: -1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
