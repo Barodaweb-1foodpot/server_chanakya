@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { json } = require("express");
 const { Console } = require("console");
+const SubCategory = require("../../models/Category/SubCategory");
 
 exports.getSubCategoryMaster = async (req, res) => {
   try {
@@ -205,6 +206,55 @@ exports.removeSubCategoryMaster = async (req, res) => {
   }
 };
 
+exports.getGroupedSubCategory = async (req, res) => {
+  try {
+    const pipeline = [
+      {
+        $group: {
+          _id: "$categoryName", // Group by categoryName
+          count: { $sum: 1 }, // Count of documents in each group
+          subCategories: { $push: "$_id" }, // Collect all subCategoryId values
+        },
+      },
+      {
+        $lookup: {
+          from: "categorymasters", // Name of the category master collection
+          localField: "_id", // The local field used for the lookup (categoryName in this case)
+          foreignField: "_id", // The foreign field in categorymaster
+          as: "categoryDetails", // Name of the field to store the joined data
+        },
+      },
+      {
+        $lookup: {
+          from: "subcategorymasters", // Name of the subcategory master collection
+          localField: "subCategories", // The array of subCategoryIds from the previous step
+          foreignField: "_id", // The foreign field in subcategorymasters
+          as: "subCategoryDetails", // Name of the field to store the joined data
+        },
+      },
+      {
+        $project: {
+          categoryDetails: { $arrayElemAt: ["$categoryDetails", 0] }, // Only get the first matched category
+          subCategoryDetails: 1, // Include all subcategory details
+          count: 1, // Include the count field
+        },
+      },
+    ];
+
+    const groupedData = await SubCategory.aggregate(pipeline); // Replace YourModel with your actual model name
+
+    res.status(200).json({
+      success: true,
+      data: groupedData,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Error while grouping subcategories",
+      error: err.message,
+    });
+  }
+};
 
 async function compressImage(file, uploadDir) {
   const filePath = path.join(uploadDir, file.filename);
