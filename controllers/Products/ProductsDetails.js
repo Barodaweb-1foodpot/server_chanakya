@@ -1,5 +1,8 @@
 const ProductsDetails = require("../../models/Products/ProductsDetails");
-const fs = require("fs");
+const multer = require("multer");
+const path= require('path')
+const fs= require('fs')
+const sharp = require('sharp'); // Add sharp import
 
 exports.getProductsDetails = async (req, res) => {
   try {
@@ -12,10 +15,15 @@ exports.getProductsDetails = async (req, res) => {
 
 exports.createProductsDetails = async (req, res) => {
   try {
-    if (!fs.existsSync(`${__basedir}/uploads/Products`)) {
-      fs.mkdirSync(`${__basedir}/uploads/Products`);
+    // Define upload directory for images
+    const uploadDir = `${__basedir}/uploads/Products`;
+
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
 
+    // Process image compression if file is uploaded
     let productImage = req.file ? await compressImage(req.file, uploadDir) : null;
     let {
       categoryName,
@@ -28,31 +36,32 @@ exports.createProductsDetails = async (req, res) => {
       isAvailable,
     } = req.body;
 
-    const alreadyExist = await ProductsDetails.findOne({
-      SKU: req.body.SKU,
-    }).exec();
-    console.log(alreadyExist)
-    if(alreadyExist)
-    {
-      return res.status(200).json({message:"SKU already exist ", isOk:false})
+    // Check for existing product by SKU
+    const alreadyExist = await ProductsDetails.findOne({ SKU: req.body.SKU }).exec();
+    if (alreadyExist) {
+      return res.status(200).json({ message: "SKU already exists", isOk: false });
     }
 
+    // Create new product details
     const add = await new ProductsDetails({
       categoryName,
       subCategoryName,
       brandName,
       productImage,
       SKU,
-      productName,price,
+      productName,
+      price,
       IsActive,
       isAvailable,
     }).save();
+
     res.status(200).json({ isOk: true, data: add, message: "" });
   } catch (err) {
     console.log(err);
     return res.status(500).send(err);
   }
 };
+
 
 exports.listProductsDetails = async (req, res) => {
   try {
@@ -378,7 +387,8 @@ exports.getUniquefilters = async (req, res) => {
 
 
 async function compressImage(file, uploadDir) {
-  const filePath = path.join(uploadDir, file.filename);
+  // Ensure uploadDir is a string path
+  const filePath = path.join(uploadDir, file.filename); 
   const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
 
   try {
@@ -386,7 +396,7 @@ async function compressImage(file, uploadDir) {
     let compressed = false;
 
     do {
-      await sharp(file.path)
+      await sharp(file.path) // Use file.path for the original file location
         .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
         .jpeg({ quality }) // Adjust the quality to reduce the size
         .toFile(compressedPath);
@@ -400,10 +410,10 @@ async function compressImage(file, uploadDir) {
     } while (!compressed);
 
     // Replace the original image with the compressed one
-    fs.unlinkSync(filePath);
-    fs.renameSync(compressedPath, filePath);
+    fs.unlinkSync(filePath); // Remove the original uncompressed image
+    fs.renameSync(compressedPath, filePath); // Rename compressed image to original image name
 
-    return `uploads/ProductImages/${file.filename}`;
+    return `uploads/Products/${file.filename}`; // Return the relative path of the product image
   } catch (error) {
     console.log('Error compressing image:', error);
     return null;

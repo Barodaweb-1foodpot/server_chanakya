@@ -24,19 +24,31 @@ const {
   getUniquefilters
 } = require("../controllers/Products/ProductsDetails");
 const multer = require("multer");
+const path= require('path')
+const fs= require('fs')
 
+
+const directories = ["uploads/Products"];
+
+directories.forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
 const multerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/Products");
-  },
-  filename: (req, file, cb) => {
-    // const ext = file.mimetype.split("/")[1];
-    // cb(null, `${uuidv4()}-${Date.now()}.${ext}`);
-    cb(null, Date.now() + "_" + file.originalname);
-  },
+    destination: (req, file, cb) => {
+
+        cb(null, "uploads/Products");
+
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + "_" + file.originalname);
+    },
 });
 
 const upload = multer({ storage: multerStorage });
+
+
 
 router.post(
   "/auth/create/product-details",
