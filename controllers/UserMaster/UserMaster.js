@@ -12,6 +12,17 @@ const createToken = (id) => {
 exports.getUserMasterDetails = async (req, res) => {
   try {
     const find = await UserMaster.findOne({
+      Email: req.params.Email,
+    }).exec();
+    res.json(find);
+  } catch (error) {
+    return res.status(500).send(error);
+  }
+};
+
+exports.getUserMasterDetail = async (req, res) => {
+  try {
+    const find = await UserMaster.findOne({
       _id: req.params._id,
     }).exec();
     res.json(find);
@@ -79,7 +90,6 @@ exports.listUserMasterByCategory = async (req, res) => {
 };
 exports.listUserMasterDetailsByParams = async (req, res) => {
   try {
-    console.log("ayo ai");
     let { skip, per_page, sorton, sortdir, match, IsActive } = req.body;
 
     let query = [
@@ -121,6 +131,20 @@ exports.listUserMasterDetailsByParams = async (req, res) => {
         },
       },
     ];
+    if (match) {
+      query = [
+        {
+          $match: {
+            $or: [
+              {
+                Name: { $regex: match, $options: "i" },
+              },
+            ],
+          },
+        },
+      ].concat(query);
+    }
+
 
     if (sorton && sortdir) {
       let sort = {};
@@ -151,10 +175,11 @@ exports.listUserMasterDetailsByParams = async (req, res) => {
 exports.updateUserMasterDetails = async (req, res) => {
   try {
    
-
+// console.log(req.body);
+    const data = req.body
     const update = await UserMaster.findOneAndUpdate(
       { _id: req.params._id },
-      fieldvalues,
+      data,
 
       { new: true }
     );
@@ -189,7 +214,8 @@ exports.loginUser = async (req, res) => {
     }
 
     // Compare the provided plain-text password with the stored hashed password
-    const isMatch = await bcrypt.compare(Password, user.Password);
+  const isMatch = Password === user.Password;
+
 
     if (!isMatch) {
       return res.json({ success: false, message: "Invalid Credentials" });
@@ -206,3 +232,6 @@ exports.loginUser = async (req, res) => {
     res.json({ success: false, message: "Error" });
   }
 };
+
+
+
