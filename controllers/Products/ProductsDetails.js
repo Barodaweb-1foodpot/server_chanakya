@@ -1,8 +1,12 @@
 const ProductsDetails = require("../../models/Products/ProductsDetails");
 const multer = require("multer");
-const path= require('path')
-const fs= require('fs')
+const path = require('path')
+const fs = require('fs')
 const sharp = require('sharp'); // Add sharp import
+// const ejs = require('ejs');
+const handlebars = require('handlebars');
+// require('web-streams-polyfill');
+const puppeteer = require('puppeteer');
 
 exports.getProductsDetails = async (req, res) => {
   try {
@@ -188,7 +192,7 @@ exports.listProductsDetailsByParams = async (req, res) => {
         },
       },
     ];
-   
+
 
     if (sorton && sortdir) {
       let sort = {};
@@ -219,7 +223,7 @@ exports.listProductsDetailsByParams = async (req, res) => {
 exports.updateProductsDetails = async (req, res) => {
   try {
     let productImage = req.file
-      ? await compressImage(req.file, uploadDir) 
+      ? await compressImage(req.file, uploadDir)
       : null;
     let fieldvalues = { ...req.body };
     if (productImage != null) {
@@ -303,19 +307,19 @@ exports.brandCount = async (req, res) => {
   let query = [
     {
       $group: {
-        _id: "$brandName", 
-        count: { $sum: 1 } 
+        _id: "$brandName",
+        count: { $sum: 1 }
       }
     },
     {
       $lookup: {
-        localField: "_id", 
-        foreignField: "_id", 
+        localField: "_id",
+        foreignField: "_id",
         as: "brandDetails"
       }
     },
-    
-    
+
+
     {
       $sort: { count: -1 }
     }
@@ -417,5 +421,234 @@ async function compressImage(file, uploadDir) {
   } catch (error) {
     console.log('Error compressing image:', error);
     return null;
+  }
+}
+
+exports.downloadPDF = async (req, res, next) => {
+  try {
+    const { startPrice, endPrice, discount } = req.body;
+console.log(startPrice);
+    // Fetch products within the given price range
+    const products = await ProductsDetails.find({
+      price: { $gte: startPrice, $lte: endPrice },
+      IsActive:true,
+      isAvailable:true
+    })
+      .populate('brandName')
+      .populate('categoryName')
+      .populate('subCategoryName');
+
+    // Check if products are found
+    if (!products.length) {
+      return res.status(200).json({ message: 'No products found in the given price range.', products, isOk: false });
+    }
+
+    // Prepare image URLs
+    const logoUrl = `${process.env.REACT_APP_API_URL}/uploads/logo.png`;
+    const logoBg = `${process.env.REACT_APP_API_URL}/uploads/number-shape.png`;
+
+    // Read and compile the HTML template
+    const templateHtml = fs.readFileSync(path.join(__dirname, 'templet.html'), 'utf8');
+    const template = handlebars.compile(templateHtml, {
+      strict: true,
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
+    const productsWithFullImageUrls = products.map(product => ({
+      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
+      brandName: product.brandName.brandName, // Extract brand name string
+      categoryName: product.categoryName.categoryName, // Extract category name string
+      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+      discountrate : product.price - ((product.price*discount)/100)
+    }));
+
+    // Register a custom Handlebars helper to group products into rows of 5
+    handlebars.registerHelper('grouped', function (items, groupSize) {
+      const result = [];
+      for (let i = 0; i < items.length; i += groupSize) {
+        result.push(items.slice(i, i + groupSize));
+      }
+      return result;
+    });
+
+    // Generate HTML with template and data
+    const html = template({
+      logoUrl,
+      logoBg,
+      discount,
+      products: productsWithFullImageUrls // Use updated product objects with full URLs
+    });
+    console.log(html)
+
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      timeout: 60000 // Increase timeout to 60 seconds
+    });
+    
+    const page = await browser.newPage();
+    
+    // Set content to the HTML template
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.emulateMediaType('screen');
+  
+    // Define the upload directory and filename
+    const uploadDir  = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
+    const filename = `catalogue-${Date.now()}.pdf`; // e.g., catalogue-2024-09-28.pdf
+    const filePath = path.join(uploadDir, filename);
+  
+    // Ensure the directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
+    }
+  
+   
+      // Generate PDF and save it to the specified path
+      await page.pdf({
+        format: 'A4',
+    path: filePath, // Save to the specified path
+    printBackground: true,
+    margin: {
+        top: '50px',
+        bottom: '50px',
+        left: '20px',
+        right: '20px'
+    },
+    displayHeaderFooter: true,
+    // headerTemplate: `
+    //     <div class="top-header">
+
+    //                 <table style="width:100%;">
+    //                     <tbody>
+    //                         <tr>
+    
+    //                             <td style="width:22%; vertical-align:top; float: left;">
+    
+    //                                 <img src={{logoUrl}} style="width: 100%; height: auto;" />
+    
+    //                             </td>
+    
+    //                             <td style="width:3%; vertical-align:top; float: left;"></td>
+    
+    //                             <td style="width:75%; vertical-align:top; float: right;">
+    
+    //                                 <div class="address-part" style="text-align: right;">
+    
+    //                                     <h5 style="color: #a01b1e;">Chanakya - The Bag Studio</h5>
+    
+    //                                     <p>
+    //                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat
+    //                                         390001, India <br>
+    //                                         Address : Chanakya The bag Studio, vadivadi, near race course circle, race
+    //                                         course road, Vadodara, Gujarat, India
+    //                                     </p>
+    
+    //                                     <p>
+    //                                         Contact No. : 919974017725 | 919974017727
+    //                                     </p>
+    
+    //                                     <p>chanakyathebagstudio@gmail.com</p>
+    
+    //                                 </div>
+    
+    //                             </td>
+    
+    
+    //                         </tr>
+    //                     </tbody>
+    //                 </table>
+    
+    //             </div>
+    // `,
+    // footerTemplate: `
+    //      <div class="footer-content">
+
+    //                 <table class="footer-part" style="width:100%">
+    //                     <tr>
+    //                         <td style="width:30%;">
+    //                             <img src={{logoBg}} style="padding:10px; width:80px; height:auto;" />
+    //                         </td>
+        
+    //                         <td style="width:55%; vertical-align: bottom; text-align:right">
+    //                             <p style="color:#222; font-weight: 500; font-size: 10pt;">www.thebagsandgifts.shop</p>
+    //                         </td>
+        
+    //                         <td style="width:5%; vertical-align: bottom; text-align:right; padding:0; position:relative;">
+    //                             <img src="img/number-shape.png" style="width:60px; height:auto;" />
+    //                             <span class="number-page">01</span>
+    //                         </td>
+    //                     </tr>
+    //                 </table>
+
+    //             </div>
+    // `,
+    // pageRanges: '1-' // Specify which pages to include in the footer
+      });
+
+    
+  
+      console.log(`PDF saved successfully to: ${filename}`);
+      
+      await browser.close();
+
+
+      
+    res.status(200).json({filename , isOk:true});
+    }
+    
+    // Launch Puppeteer to generate the PDF
+  //  res.send(tempfun(html))
+   catch (err) {
+    console.error('Error generating PDF:', err);
+    next(err);
+  }
+};
+
+// const puppeteer = require('puppeteer');
+// const path = require('path'); // Import path module for path manipulation
+// const fs = require('fs'); // Import fs module to check directory existence
+
+async function tempfun(html) {
+ 
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: true,
+    timeout: 60000 // Increase timeout to 60 seconds
+  });
+  
+  const page = await browser.newPage();
+  
+  // Set content to the HTML template
+  await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+  await page.emulateMediaType('screen');
+
+  // Define the upload directory and filename
+  const uploadDir  = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
+  const filename = `catalogue-${new Date().toISOString().split('T')[0]}.pdf`; // e.g., catalogue-2024-09-28.pdf
+  const filePath = path.join(uploadDir, filename);
+
+  // Ensure the directory exists
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
+  }
+
+  try {
+    // Generate PDF and save it to the specified path
+    await page.pdf({
+      format: 'A4',
+      path: filePath, // Save to the specified path
+      printBackground: true
+    });
+
+    console.log(`PDF saved successfully to: ${filePath}`);
+    
+    await browser.close();
+    
+    return filePath; // You can return the file path if needed
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    await browser.close();
+    // Handle the error as appropriate
   }
 }
