@@ -14,7 +14,9 @@ const {
   listUserMasterByCategory,
   loginUser,
   getExamUserMasterDetails,
+  getUserMasterDetail,
 } = require("../controllers/UserMaster/UserMaster");
+
 
 
 
@@ -34,8 +36,13 @@ router.post(
 );
 
 router.get(
-  "/auth/get/UserMasterDetails/:_id",
+  "/auth/get/UserMasterDetails/:Email",
   catchAsync(getUserMasterDetails)
+);
+
+router.get(
+  "/auth/get/UserMasterDetail/:_id",
+  catchAsync(getUserMasterDetail)
 );
 
 router.get(
@@ -64,5 +71,8 @@ router.get(
 ///
 
 router.post("/UserMasterLogin", catchAsync(loginUser));
+
+
+
 
 module.exports = router;
