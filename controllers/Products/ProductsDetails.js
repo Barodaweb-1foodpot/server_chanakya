@@ -69,7 +69,7 @@ exports.createProductsDetails = async (req, res) => {
 
 exports.listProductsDetails = async (req, res) => {
   try {
-    const list = await ProductsDetails.find().sort({ productName: 1 }).exec();
+    const list = await ProductsDetails.find({isAvailable: true , IsActive :true}).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -608,47 +608,119 @@ console.log(startPrice);
 // const puppeteer = require('puppeteer');
 // const path = require('path'); // Import path module for path manipulation
 // const fs = require('fs'); // Import fs module to check directory existence
-
-async function tempfun(html) {
- 
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    headless: true,
-    timeout: 60000 // Increase timeout to 60 seconds
-  });
-  
-  const page = await browser.newPage();
-  
-  // Set content to the HTML template
-  await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-  await page.emulateMediaType('screen');
-
-  // Define the upload directory and filename
-  const uploadDir  = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
-  const filename = `catalogue-${new Date().toISOString().split('T')[0]}.pdf`; // e.g., catalogue-2024-09-28.pdf
-  const filePath = path.join(uploadDir, filename);
-
-  // Ensure the directory exists
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
-  }
-
+const mongoose = require('mongoose');
+exports.getFilteredProducts = async (req, res) => {
   try {
-    // Generate PDF and save it to the specified path
-    await page.pdf({
-      format: 'A4',
-      path: filePath, // Save to the specified path
-      printBackground: true
-    });
+    const { activeBrandIndices, activeCategoriesIndices, activeSubCategoriesIndices, value } = req.body;
+    console.log(req.body)
+    // Build the query object
+    const query = {};
 
-    console.log(`PDF saved successfully to: ${filePath}`);
+    // Filter by brand if activeBrandIndices are provided
+    if (activeBrandIndices && activeBrandIndices.length > 0) {
+      query.brandName = { $in: activeBrandIndices.map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    // Filter by category if activeCategoriesIndices are provided
+    if (activeCategoriesIndices && activeCategoriesIndices.length > 0) {
+      query.categoryName = { $in: activeCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    // Filter by subcategory if activeSubCategoriesIndices are provided
+    if (activeSubCategoriesIndices && activeSubCategoriesIndices.length > 0) {
+      query.subCategoryName = { $in: activeSubCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    // Filter by product IDs or SKU (assuming value is product ID or SKU)
+     
+
+    // Query for fetching the product details
+    const products = await ProductsDetails.aggregate([
+      {
+        $match: {
+          ...query, // Match the filtered criteria for brand, category, and subcategory
+          price: { 
+            $gte: value[0],  // value[0] is the minimum price
+            $lte: value[1]   // value[1] is the maximum price
+          }
+        },
+      },
+      {
+        $lookup: {
+          from: 'categorymasters', // Collection for categories
+          localField: 'categoryName',
+          foreignField: '_id',
+          as: 'categoryName',
+        },
+      },
+      {
+        $lookup: {
+          from: 'subcategorymasters', // Collection for subcategories
+          localField: 'subCategoryName',
+          foreignField: '_id',
+          as: 'subCategoryName',
+        },
+      },
+      {
+        $lookup: {
+          from: 'brandmasters', // Collection for brands
+          localField: 'brandName',
+          foreignField: '_id',
+          as: 'brandName',
+        },
+      },
+      {
+        $unwind: {
+          path: "$categoryName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$subCategoryName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$brandName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: null, // Grouping all matched products
+          uniqueBrandNames: { $addToSet: "$brandName._id" }, // Collect unique brand IDs
+          uniqueBrandDetails: { $addToSet: "$brandName" },   // Collect unique brand details
+          products: {
+            $push: {
+              productId: "$_id",
+              productName: "$productName",
+              productImage: "$productImage",
+              price: "$price",
+              productsubsmasterId: "$productsubsmasterId",
+              categoryName: "$categoryName",
+              subCategoryName: "$subCategoryName",
+              brandName: "$brandName"
+            }
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0, // Do not include _id in the result
+          uniqueBrandNames: 1, // Return the unique brand IDs
+          uniqueBrandDetails: 1, // Return the unique brand details
+          products: 1, // Return the product details
+        },
+      }
+    ]);
     
-    await browser.close();
-    
-    return filePath; // You can return the file path if needed
+
+
+    res.status(200).json({ success: true, products });
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    await browser.close();
-    // Handle the error as appropriate
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to fetch products', error });
   }
-}
+};

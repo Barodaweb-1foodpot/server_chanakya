@@ -22,7 +22,8 @@ const {
   CategoryProductList,
   brandCount,
   getUniquefilters,
-  downloadPDF
+  downloadPDF,
+  getFilteredProducts,
 } = require("../controllers/Products/ProductsDetails");
 const multer = require("multer");
 const path= require('path')
@@ -119,5 +120,7 @@ router.get("/auth/list/brand-count", catchAsync(brandCount));
 router.get("/auth/list/get-filters", catchAsync(getUniquefilters));
 
 router.post('/auth/downloadCatalogue',catchAsync(downloadPDF))
+
+router.post("/auth/list/get-filtered-products", catchAsync(getFilteredProducts));
 
 module.exports = router;
