@@ -69,7 +69,7 @@ exports.createProductsDetails = async (req, res) => {
 
 exports.listProductsDetails = async (req, res) => {
   try {
-    const list = await ProductsDetails.find({isAvailable: true , IsActive :true}).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
+    const list = await ProductsDetails.find({ isAvailable: true, IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -392,7 +392,7 @@ exports.getUniquefilters = async (req, res) => {
 
 async function compressImage(file, uploadDir) {
   // Ensure uploadDir is a string path
-  const filePath = path.join(uploadDir, file.filename); 
+  const filePath = path.join(uploadDir, file.filename);
   const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
 
   try {
@@ -426,21 +426,74 @@ async function compressImage(file, uploadDir) {
 
 exports.downloadPDF = async (req, res, next) => {
   try {
-    const { startPrice, endPrice, discount } = req.body;
-console.log(startPrice);
-    // Fetch products within the given price range
+    const filters = req.body;  // Assuming this is the array sent from the frontend
+
+    // Build an array of queries based on the filters
+    const queryConditions = filters.map(filter => {
+      // Start building the base query
+      let query = {
+        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        IsActive: true,
+        isAvailable: true,
+      };
+
+      // Conditionally add category if it exists
+      if (filter.category) {
+        query.categoryName = filter.category;
+      }
+
+      // Conditionally add subcategory if it exists
+      if (filter.subCategory) {
+        query.subCategoryName = filter.subCategory;
+      }
+
+      // Attach discount to the query for later use
+      query.discount = filter.discount;
+
+      return query;
+    });
+
+    // console.log(queryConditions);
+
+    // Use the $or operator to combine all filter conditions
     const products = await ProductsDetails.find({
-      price: { $gte: startPrice, $lte: endPrice },
-      IsActive:true,
-      isAvailable:true
+      $or: queryConditions.map(condition => {
+        const { discount, ...query } = condition; // Exclude discount for the query
+        return query;
+      })
     })
       .populate('brandName')
       .populate('categoryName')
       .populate('subCategoryName');
 
+  
+
+    // Now iterate over the products and attach the correct discount
+    const updatedProducts = products.map(product => {
+      // Find the matching filter condition
+      const matchingCondition = queryConditions.find(condition => {
+        return (
+          product.price >= condition.price.$gte &&
+          product.price <= condition.price.$lte &&
+          (!condition.categoryName || product.categoryName.equals(condition.categoryName)) &&
+          (!condition.subCategoryName || product.subCategoryName.equals(condition.subCategoryName))
+        );
+      });
+
+      
+      // Attach the discount to the product if a matching condition is found
+      if (matchingCondition) {
+        product.discount = matchingCondition.discount;  // Add the discount to the product
+      }
+
+      return product;
+    });
+
+    console.log(updatedProducts);
+
     // Check if products are found
-    if (!products.length) {
-      return res.status(200).json({ message: 'No products found in the given price range.', products, isOk: false });
+    if (!updatedProducts.length) { // Changed from products to updatedProducts
+      return res.status(200).json({ message: 'No products found in the given price range.', products: updatedProducts, isOk: false });
     }
 
     // Prepare image URLs
@@ -454,13 +507,15 @@ console.log(startPrice);
       allowProtoPropertiesByDefault: true,
       allowProtoMethodsByDefault: true
     });
-    const productsWithFullImageUrls = products.map(product => ({
+
+    // Prepare products with full image URLs and discount rates
+    const productsWithFullImageUrls = updatedProducts.map(product => ({
       ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
       productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
       brandName: product.brandName.brandName, // Extract brand name string
       categoryName: product.categoryName.categoryName, // Extract category name string
       subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
-      discountrate : product.price - ((product.price*discount)/100)
+      discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
     }));
 
     // Register a custom Handlebars helper to group products into rows of 5
@@ -476,7 +531,6 @@ console.log(startPrice);
     const html = template({
       logoUrl,
       logoBg,
-      discount,
       products: productsWithFullImageUrls // Use updated product objects with full URLs
     });
     console.log(html)
@@ -486,124 +540,64 @@ console.log(startPrice);
       headless: true,
       timeout: 60000 // Increase timeout to 60 seconds
     });
-    
+
     const page = await browser.newPage();
-    
+
     // Set content to the HTML template
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
     await page.emulateMediaType('screen');
-  
+
     // Define the upload directory and filename
-    const uploadDir  = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
+    const uploadDir = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
     const filename = `catalogue-${Date.now()}.pdf`; // e.g., catalogue-2024-09-28.pdf
     const filePath = path.join(uploadDir, filename);
-  
+
     // Ensure the directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
     }
-  
-   
-      // Generate PDF and save it to the specified path
-      await page.pdf({
-        format: 'A4',
-    path: filePath, // Save to the specified path
-    printBackground: true,
-    margin: {
-        top: '50px',
-        bottom: '50px',
-        left: '20px',
-        right: '20px'
-    },
-    displayHeaderFooter: true,
-    // headerTemplate: `
-    //     <div class="top-header">
 
-    //                 <table style="width:100%;">
-    //                     <tbody>
-    //                         <tr>
+    // Generate PDF and save it to the specified path
+    await page.pdf({
+      format: 'A4',
+      path: filePath, // Save to the specified path
+      printBackground: true,
+      displayHeaderFooter: true,
+      footerTemplate: `
+           <div style="font-size:10px; color:#fff; width:100%; padding:10px 20px; box-sizing:border-box; text-align:right; position:relative;">
+          <span class="footer-part" style="font-size: 10px; font-family: Arial, sans-serif;">
+              <span class="pageNumber number-page" style=" position: relative;
+            right: 0px;
+            bottom: 5px;
+            font-size: 20px;
+            color: white !important;
+            font-weight:600 !;
+             filter: brightness(0) saturate(100%) invert(100%) sepia(5%) saturate(21%) hue-rotate(154deg) brightness(105%) contrast(100%);
+            "></span> 
+          </span>
+      </div>
+      `,
+       
+      margin: {
+        top:'100px',
+        bottom: '40px' // Set a bottom margin to display the footer
+      },
+      pageRanges: '1-', // To generate all pages
+    });
     
-    //                             <td style="width:22%; vertical-align:top; float: left;">
-    
-    //                                 <img src={{logoUrl}} style="width: 100%; height: auto;" />
-    
-    //                             </td>
-    
-    //                             <td style="width:3%; vertical-align:top; float: left;"></td>
-    
-    //                             <td style="width:75%; vertical-align:top; float: right;">
-    
-    //                                 <div class="address-part" style="text-align: right;">
-    
-    //                                     <h5 style="color: #a01b1e;">Chanakya - The Bag Studio</h5>
-    
-    //                                     <p>
-    //                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat
-    //                                         390001, India <br>
-    //                                         Address : Chanakya The bag Studio, vadivadi, near race course circle, race
-    //                                         course road, Vadodara, Gujarat, India
-    //                                     </p>
-    
-    //                                     <p>
-    //                                         Contact No. : 919974017725 | 919974017727
-    //                                     </p>
-    
-    //                                     <p>chanakyathebagstudio@gmail.com</p>
-    
-    //                                 </div>
-    
-    //                             </td>
-    
-    
-    //                         </tr>
-    //                     </tbody>
-    //                 </table>
-    
-    //             </div>
-    // `,
-    // footerTemplate: `
-    //      <div class="footer-content">
 
-    //                 <table class="footer-part" style="width:100%">
-    //                     <tr>
-    //                         <td style="width:30%;">
-    //                             <img src={{logoBg}} style="padding:10px; width:80px; height:auto;" />
-    //                         </td>
-        
-    //                         <td style="width:55%; vertical-align: bottom; text-align:right">
-    //                             <p style="color:#222; font-weight: 500; font-size: 10pt;">www.thebagsandgifts.shop</p>
-    //                         </td>
-        
-    //                         <td style="width:5%; vertical-align: bottom; text-align:right; padding:0; position:relative;">
-    //                             <img src="img/number-shape.png" style="width:60px; height:auto;" />
-    //                             <span class="number-page">01</span>
-    //                         </td>
-    //                     </tr>
-    //                 </table>
+    console.log(`PDF saved successfully to: ${filename}`);
 
-    //             </div>
-    // `,
-    // pageRanges: '1-' // Specify which pages to include in the footer
-      });
+    await browser.close();
 
-    
-  
-      console.log(`PDF saved successfully to: ${filename}`);
-      
-      await browser.close();
-
-
-      
-    res.status(200).json({filename , isOk:true});
-    }
-    
-    // Launch Puppeteer to generate the PDF
-  //  res.send(tempfun(html))
-   catch (err) {
+    res.status(200).json({ filename, isOk: true });
+  }
+  catch (err) {
     console.error('Error generating PDF:', err);
     next(err);
   }
 };
+
 
 // const puppeteer = require('puppeteer');
 // const path = require('path'); // Import path module for path manipulation
@@ -632,14 +626,14 @@ exports.getFilteredProducts = async (req, res) => {
     }
 
     // Filter by product IDs or SKU (assuming value is product ID or SKU)
-     
+
 
     // Query for fetching the product details
     const products = await ProductsDetails.aggregate([
       {
         $match: {
           ...query, // Match the filtered criteria for brand, category, and subcategory
-          price: { 
+          price: {
             $gte: value[0],  // value[0] is the minimum price
             $lte: value[1]   // value[1] is the maximum price
           }
@@ -715,7 +709,7 @@ exports.getFilteredProducts = async (req, res) => {
         },
       }
     ]);
-    
+
 
 
     res.status(200).json({ success: true, products });

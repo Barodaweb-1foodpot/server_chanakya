@@ -24,6 +24,7 @@ const {
   getUniquefilters,
   downloadPDF,
   getFilteredProducts,
+  getLastSKUNo
 } = require("../controllers/Products/ProductsDetails");
 const multer = require("multer");
 const path= require('path')
@@ -122,5 +123,8 @@ router.get("/auth/list/get-filters", catchAsync(getUniquefilters));
 router.post('/auth/downloadCatalogue',catchAsync(downloadPDF))
 
 router.post("/auth/list/get-filtered-products", catchAsync(getFilteredProducts));
+
+router.get("/auth/list/last-SKU", catchAsync(getLastSKUNo));
+ 
 
 module.exports = router;

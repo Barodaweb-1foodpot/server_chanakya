@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +25,7 @@
 
         body {
             height: 100%;
-           
+
             /* add grey color border */
             /* border: 2px dotted #000; */
             display: flex;
@@ -32,17 +33,18 @@
         }
 
         .catalog-start {
-            border: 1px dashed #ccc;
+            /* border: 1px dashed #ccc; */
             /* border-bottom: 0; */
-            margin: 10px 10px 10px;
-            padding: 5px;
+            /* margin: 10px 10px 10px;
+            padding: 5px; */
         }
 
         .top-header {
-            /* border: 1px dashed #ccc;
+            /* border: 1px dashed #ccc;*/
             border-bottom: 0;
             margin: 10px 10px 0;
-            padding: 20px; */
+            padding: 20px; 
+            height:13vh;
         }
 
         .address-part {}
@@ -58,15 +60,16 @@
 
         .product-part {
             padding: 10px;
-    margin: 0 2% 20px;
-    border: 1px solid #eee;
-    background-color: #fff;
-    width:170px;
+            margin: 20px 5px 20px;
+            border: 1px solid #eee;
+            background-color: #fff;
+            width: 200px;
         }
-
+        .middel-content {height: 77vh;padding-right: 5px;}
         .middel-content td:first-child .product-part {
             margin-left: 0;
         }
+
         .middel-content td:last-child .product-part {
             margin-right: 0;
         }
@@ -102,10 +105,10 @@
 
         .product-part .product-details .product-price {
             font-size: 11pt;
-    text-align: center;
-    font-weight: 500;
-    color: #9f1c1e;
-    margin-bottom: 0;
+            text-align: center;
+            font-weight: 500;
+            color: #9f1c1e;
+            margin-bottom: 0;
         }
 
         .product-part .product-details .product-price .remove-price {
@@ -118,6 +121,12 @@
             /* margin-top: auto; */
             /* padding: 10px; */
             /* margin-left: auto; */
+            position: relative;
+        }
+        .footer .page-number {
+            display: inline-block;
+            font-size: 10px;
+            color: #fff;
         }
 
         .right {
@@ -126,8 +135,9 @@
 
 
         .footer-part {
-            background-color: #efefef;
+             background-color: #efefef;
             padding: 0 10px;
+            position: fixed;
             width: 100%;
         }
 
@@ -142,33 +152,53 @@
 
 
         @media print {
-
+            body{
+                max-height: 100vh;
+                height: 100vh;
+                min-height: 100vh;
+            }
             body,
             html {
                 -webkit-print-color-adjust: exact;
             }
-
             .footer-part {
-                background-color: #efefef;
+                /* background-color: #efefef; */
                 -webkit-print-color-adjust: exact;
                 padding: 0 10px;
                 width: 100%;
+                bottom: 0;
+                position: fixed;
             }
-
+            .pageNumber{
+                -webkit-print-color-adjust: exact;
+                color: #fff;
+            }
             .product-part {
-            padding: 10px;
-    margin: 0 2% 20px;
-    border: 1px solid #eee;
-    background-color: #fff;
-    width: 100%;
+                padding: 10px;
+                margin: 0 2% 20px;
+                border: 1px solid #eee;
+                background-color: #fff;
+                width: 100%;
+            }
         }
-        }
+
+        @media print {
+    .top-header {
+        position: fixed;
+        top: 0;
+    }
+    .footer-part {
+        position: fixed;
+        bottom: 0;
+    }
+}
     </style>
 </head>
+
 <body>
     <div class="Report-Part">
 
-        <div >
+        <div>
 
             <div class="catalog-start">
 
@@ -177,56 +207,56 @@
                     <table style="width:100%;">
                         <tbody>
                             <tr>
-    
+
                                 <td style="width:22%; vertical-align:top; float: left;">
-    
+
                                     <img src={{logoUrl}} style="width: 100%; height: auto;" />
-    
+
                                 </td>
-    
+
                                 <td style="width:3%; vertical-align:top; float: left;"></td>
-    
+
                                 <td style="width:75%; vertical-align:top; float: right;">
-    
+
                                     <div class="address-part" style="text-align: right;">
-    
+
                                         <h5 style="color: #a01b1e;">Chanakya - The Bag Studio</h5>
-    
+
                                         <p>
                                             Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat
                                             390001, India <br>
                                             Address : Chanakya The bag Studio, vadivadi, near race course circle, race
                                             course road, Vadodara, Gujarat, India
                                         </p>
-    
+
                                         <p>
                                             Contact No. : 919974017725 | 919974017727
                                         </p>
-    
+
                                         <p>chanakyathebagstudio@gmail.com</p>
-    
+
                                     </div>
-    
+
                                 </td>
-    
-    
+
+
                             </tr>
                         </tbody>
                     </table>
-    
+
                 </div>
-    
+
                 <hr />
-    
-                <div class="middel-content">
-    
-    
+
+                <div class="middel-content" >
+
+
                     <table style="width:100%;">
                         <tbody>
                             {{#each (grouped products 4)}}
                             <tr>
                                 {{#each this}}
-                                <td style="width:20%; vertical-align:top;">
+                                <td style="width:20%; vertical-align:top; padding: 0 10px;">
                                     <div class="product-part">
                                         <div class="product-img">
                                             <img src="{{this.productImage}}" style="width: 100%; height: auto;" />
@@ -234,7 +264,8 @@
                                         <div class="product-details">
                                             <p class="product-brand">{{this.brandName}}</p>
                                             <p class="product-name">{{this.productName}}</p>
-                                            <p class="product-price">₹{{this.discountrate}} <del class="remove-price">₹.{{this.price}}</del></p>
+                                            <p class="product-price">₹{{this.discountrate}} <del
+                                                    class="remove-price">₹.{{this.price}}</del></p>
                                         </div>
                                     </div>
                                 </td>
@@ -243,36 +274,38 @@
                             {{/each}}
                         </tbody>
                     </table>
-                    
-    
+
+
                 </div>
                 <footer>
 
-                <!-- <div class="footer-content">
+                    <div class="footer-content">
 
-                    <table class="footer-part" style="width:100%">
-                        <tr>
-                            <td style="width:30%;">
-                                <img src={{logoUrl}} style="padding:10px; width:80px; height:auto;" />
-                            </td>
-        
-                            <td style="width:55%; vertical-align: bottom; text-align:right">
-                                <p style="color:#222; font-weight: 500; font-size: 10pt;">www.thebagsandgifts.shop</p>
-                            </td>
-        
-                            <td style="width:5%; vertical-align: bottom; text-align:right; padding:0; position:relative;">
-                                <img src="{{logoBg}}" style="width:60px; height:auto;" />
-                                <span class="number-page">01</span>
-                            </td>
-                        </tr>
-                    </table>
-
-                </div> -->
-            </footer>
+                        <table class="footer-part" style="width:100%">
+                            <tr>
+                                <td style="width:40%;">
+                                    <img src={{logoUrl}} style="padding:10px; width:80px; height:auto;" />
+                                </td>
+    
+                                <td style="width:55%; vertical-align: bottom; text-align:right">
+                                    <p style="color:#222; font-weight: 500; font-size: 10pt;">www.thebagsandgifts.shop</p>
+                                </td>
+    
+                                <td
+                                    style="width:5%; vertical-align: bottom; text-align:right; padding:0; position:relative;">
+                                    <img src={{logoBg}} style="width:60px; height:auto;" />
+                                    <!-- <span class="page-number">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span> -->
+                                </td>
+                                
+                            </tr>
+                        </table>
+    
+                    </div>
+                </footer>
             </div>
 
-           
-          
+
+
 
 
         </div>
@@ -280,4 +313,5 @@
 
     </div>
 </body>
+
 </html>
