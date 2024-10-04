@@ -5,7 +5,9 @@ const router = express.Router();
 const catchAsync = require("../utils/catchAsync");
 
 const {
-    createCatalogueInquiry
+    createCatalogueInquiry,
+    listCatalogueInquiryByParams,
+    getCatalogueInquiry
 } = require("../controllers/CatalogueInquiry/CatalogueInquiry");
 const multer = require("multer");
 const path= require('path')
@@ -33,5 +35,10 @@ const multerStorage = multer.diskStorage({
 const upload = multer({ storage: multerStorage });
 
 router.post('/auth/create/catalogue-inqiury' , catchAsync(createCatalogueInquiry))
+
+router.post("/auth/listByparams/listCatalogueInquiryByParams", catchAsync(listCatalogueInquiryByParams));
+
+router.get("/auth/get/CatalogueInquiry/:_id", catchAsync(getCatalogueInquiry));
+
 
 module.exports = router;
