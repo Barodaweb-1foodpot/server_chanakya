@@ -12,7 +12,7 @@ const createToken = (id) => {
 exports.getUserMasterDetails = async (req, res) => {
   try {
     const find = await UserMaster.findOne({
-      Email: req.params.Email,
+      _id: req.params.Email,
     }).exec();
     res.json(find);
   } catch (error) {
@@ -45,6 +45,13 @@ exports.createUserMasterDetails = async (req, res) => {
       IsActive,
     } = req.body;
 
+    const already = await UserMaster.findOne({Email : Email}).exec()
+
+    if(already)
+    {
+      return res.status(200).json({isOk: false, message :'Email already registered'})
+    }
+
     // Hash the password before saving it
 
     // Create new UserMaster document with hashed password
@@ -57,7 +64,7 @@ exports.createUserMasterDetails = async (req, res) => {
     }).save();
 
     // Send successful response
-    res.status(200).json({ isOk: true, data: add, message: "qwd" });
+    return res.status(200).json({ isOk: true, data: add, message: "qwd" });
   } catch (err) {
     // Log error and send error response
     console.log(err);
@@ -225,7 +232,7 @@ exports.loginUser = async (req, res) => {
     const token = createToken(user._id);
 
     // Return success response with the token
-    res.json({ success: true, token });
+    return res.json({ success: true, token ,user});
   } catch (error) {
     // Log any errors that occur and send a general error response
     console.log(error);

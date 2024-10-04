@@ -388,220 +388,6 @@ exports.getUniquefilters = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching unique product details." });
   }
 };
-
-
-async function compressImage(file, uploadDir) {
-  // Ensure uploadDir is a string path
-  const filePath = path.join(uploadDir, file.filename);
-  const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
-
-  try {
-    let quality = 80;
-    let compressed = false;
-
-    do {
-      await sharp(file.path) // Use file.path for the original file location
-        .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
-        .jpeg({ quality }) // Adjust the quality to reduce the size
-        .toFile(compressedPath);
-
-      const { size } = fs.statSync(compressedPath);
-      if (size <= 100 * 1024 || quality <= 20) { // Check if size is under 100 KB or quality is too low
-        compressed = true;
-      } else {
-        quality -= 10; // Reduce quality further if size is still too large
-      }
-    } while (!compressed);
-
-    // Replace the original image with the compressed one
-    fs.unlinkSync(filePath); // Remove the original uncompressed image
-    fs.renameSync(compressedPath, filePath); // Rename compressed image to original image name
-
-    return `uploads/Products/${file.filename}`; // Return the relative path of the product image
-  } catch (error) {
-    console.log('Error compressing image:', error);
-    return null;
-  }
-}
-
-exports.downloadPDF = async (req, res, next) => {
-  try {
-    const filters = req.body;  // Assuming this is the array sent from the frontend
-
-    // Build an array of queries based on the filters
-    const queryConditions = filters.map(filter => {
-      // Start building the base query
-      let query = {
-        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
-        IsActive: true,
-        isAvailable: true,
-      };
-
-      // Conditionally add category if it exists
-      if (filter.category) {
-        query.categoryName = filter.category;
-      }
-
-      // Conditionally add subcategory if it exists
-      if (filter.subCategory) {
-        query.subCategoryName = filter.subCategory;
-      }
-
-      // Attach discount to the query for later use
-      query.discount = filter.discount;
-
-      return query;
-    });
-
-    // console.log(queryConditions);
-
-    // Use the $or operator to combine all filter conditions
-    const products = await ProductsDetails.find({
-      $or: queryConditions.map(condition => {
-        const { discount, ...query } = condition; // Exclude discount for the query
-        return query;
-      })
-    })
-      .populate('brandName')
-      .populate('categoryName')
-      .populate('subCategoryName');
-
-  
-
-    // Now iterate over the products and attach the correct discount
-    const updatedProducts = products.map(product => {
-      // Find the matching filter condition
-      const matchingCondition = queryConditions.find(condition => {
-        return (
-          product.price >= condition.price.$gte &&
-          product.price <= condition.price.$lte &&
-          (!condition.categoryName || product.categoryName.equals(condition.categoryName)) &&
-          (!condition.subCategoryName || product.subCategoryName.equals(condition.subCategoryName))
-        );
-      });
-
-      
-      // Attach the discount to the product if a matching condition is found
-      if (matchingCondition) {
-        product.discount = matchingCondition.discount;  // Add the discount to the product
-      }
-
-      return product;
-    });
-
-    console.log(updatedProducts);
-
-    // Check if products are found
-    if (!updatedProducts.length) { // Changed from products to updatedProducts
-      return res.status(200).json({ message: 'No products found in the given price range.', products: updatedProducts, isOk: false });
-    }
-
-    // Prepare image URLs
-    const logoUrl = `${process.env.REACT_APP_API_URL}/uploads/logo.png`;
-    const logoBg = `${process.env.REACT_APP_API_URL}/uploads/number-shape.png`;
-
-    // Read and compile the HTML template
-    const templateHtml = fs.readFileSync(path.join(__dirname, 'templet.html'), 'utf8');
-    const template = handlebars.compile(templateHtml, {
-      strict: true,
-      allowProtoPropertiesByDefault: true,
-      allowProtoMethodsByDefault: true
-    });
-
-    // Prepare products with full image URLs and discount rates
-    const productsWithFullImageUrls = updatedProducts.map(product => ({
-      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
-      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
-      brandName: product.brandName.brandName, // Extract brand name string
-      categoryName: product.categoryName.categoryName, // Extract category name string
-      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
-      discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
-    }));
-
-    // Register a custom Handlebars helper to group products into rows of 5
-    handlebars.registerHelper('grouped', function (items, groupSize) {
-      const result = [];
-      for (let i = 0; i < items.length; i += groupSize) {
-        result.push(items.slice(i, i + groupSize));
-      }
-      return result;
-    });
-
-    // Generate HTML with template and data
-    const html = template({
-      logoUrl,
-      logoBg,
-      products: productsWithFullImageUrls // Use updated product objects with full URLs
-    });
-    console.log(html)
-
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: true,
-      timeout: 60000 // Increase timeout to 60 seconds
-    });
-
-    const page = await browser.newPage();
-
-    // Set content to the HTML template
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-    await page.emulateMediaType('screen');
-
-    // Define the upload directory and filename
-    const uploadDir = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
-    const filename = `catalogue-${Date.now()}.pdf`; // e.g., catalogue-2024-09-28.pdf
-    const filePath = path.join(uploadDir, filename);
-
-    // Ensure the directory exists
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
-    }
-
-    // Generate PDF and save it to the specified path
-    await page.pdf({
-      format: 'A4',
-      path: filePath, // Save to the specified path
-      printBackground: true,
-      displayHeaderFooter: true,
-      footerTemplate: `
-           <div style="font-size:10px; color:#fff; width:100%; padding:10px 20px; box-sizing:border-box; text-align:right; position:relative;">
-          <span class="footer-part" style="font-size: 10px; font-family: Arial, sans-serif;">
-              <span class="pageNumber number-page" style=" position: relative;
-            right: 0px;
-            bottom: 5px;
-            font-size: 20px;
-            color: white !important;
-            font-weight:600 !;
-             filter: brightness(0) saturate(100%) invert(100%) sepia(5%) saturate(21%) hue-rotate(154deg) brightness(105%) contrast(100%);
-            "></span> 
-          </span>
-      </div>
-      `,
-       
-      margin: {
-        top:'100px',
-        bottom: '40px' // Set a bottom margin to display the footer
-      },
-      pageRanges: '1-', // To generate all pages
-    });
-    
-
-    console.log(`PDF saved successfully to: ${filename}`);
-
-    await browser.close();
-
-    res.status(200).json({ filename, isOk: true });
-  }
-  catch (err) {
-    console.error('Error generating PDF:', err);
-    next(err);
-  }
-};
-
-
-// const puppeteer = require('puppeteer');
-// const path = require('path'); // Import path module for path manipulation
-// const fs = require('fs'); // Import fs module to check directory existence
 const mongoose = require('mongoose');
 exports.getFilteredProducts = async (req, res) => {
   try {
@@ -716,5 +502,427 @@ exports.getFilteredProducts = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Failed to fetch products', error });
+  }
+};
+
+
+
+exports.getLastSKUNo = async (req, res) => {
+  try {
+    // Find the last bill sorted by created date
+    const lastBill = await ProductsDetails.findOne().sort({ createdAt: -1 });
+
+    if (!lastBill) {
+      return res.status(200).json({ message: "No Product found" , isOk:false });
+    }
+
+    return res.status(200).json({ lastSKUNo: lastBill.SKU });
+  } catch (error) {
+    return res.status(500).json({ message: "Error retrieving the last SKU", error });
+  }
+};
+
+async function compressImage(file, uploadDir) {
+  // Ensure uploadDir is a string path
+  const filePath = path.join(uploadDir, file.filename);
+  const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
+
+  try {
+    let quality = 80;
+    let compressed = false;
+
+    do {
+      await sharp(file.path) // Use file.path for the original file location
+        .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
+        .jpeg({ quality }) // Adjust the quality to reduce the size
+        .toFile(compressedPath);
+
+      const { size } = fs.statSync(compressedPath);
+      if (size <= 100 * 1024 || quality <= 20) { // Check if size is under 100 KB or quality is too low
+        compressed = true;
+      } else {
+        quality -= 10; // Reduce quality further if size is still too large
+      }
+    } while (!compressed);
+
+    // Replace the original image with the compressed one
+    fs.unlinkSync(filePath); // Remove the original uncompressed image
+    fs.renameSync(compressedPath, filePath); // Rename compressed image to original image name
+
+    return `uploads/Products/${file.filename}`; // Return the relative path of the product image
+  } catch (error) {
+    console.log('Error compressing image:', error);
+    return null;
+  }
+}
+
+exports.downloadPDF = async (req, res, next) => {
+  try {
+    const filters = req.body;  // Assuming this is the array sent from the frontend
+
+    // Build an array of queries based on the filters
+    const queryConditions = filters.map(filter => {
+      // Start building the base query
+      let query = {
+        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        IsActive: true,
+        isAvailable: true,
+      };
+
+      // Conditionally add category if it exists
+      if (filter.category) {
+        query.categoryName = filter.category;
+      }
+
+      // Conditionally add subcategory if it exists
+      if (filter.subCategory) {
+        query.subCategoryName = filter.subCategory;
+      }
+
+      // Attach discount to the query for later use
+      query.discount = filter.discount;
+
+      return query;
+    });
+
+    // console.log(queryConditions);
+
+    // Use the $or operator to combine all filter conditions
+    const products = await ProductsDetails.find({
+      $or: queryConditions.map(condition => {
+        const { discount, ...query } = condition; // Exclude discount for the query
+        return query;
+      })
+    })
+      .populate('brandName')
+      .populate('categoryName')
+      .populate('subCategoryName');
+
+  
+
+    // Now iterate over the products and attach the correct discount
+    const updatedProducts = products.map(product => {
+      // Find the matching filter condition
+      const matchingCondition = queryConditions.find(condition => {
+        return (
+          product.price >= condition.price.$gte &&
+          product.price <= condition.price.$lte &&
+          (!condition.categoryName || product.categoryName.equals(condition.categoryName)) &&
+          (!condition.subCategoryName || product.subCategoryName.equals(condition.subCategoryName))
+        );
+      });
+
+      
+      // Attach the discount to the product if a matching condition is found
+      if (matchingCondition) {
+        product.discount = matchingCondition.discount;  // Add the discount to the product
+      }
+
+      return product;
+    });
+
+    // console.log(updatedProducts);
+
+    // Check if products are found
+    if (!updatedProducts.length) { // Changed from products to updatedProducts
+      return res.status(200).json({ message: 'No products found in the given price range.', products: updatedProducts, isOk: false });
+    }
+
+    // Prepare image URLs
+    const logoUrl = `${process.env.REACT_APP_API_URL}/uploads/logo.png`;
+    const logoBg = `${process.env.REACT_APP_API_URL}/uploads/number-shape.png`;
+
+    // Read and compile the HTML template
+    const templateHtml = fs.readFileSync(path.join(__dirname, 'templet.html'), 'utf8');
+    const template = handlebars.compile(templateHtml, {
+      strict: true,
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
+
+    // Prepare products with full image URLs and discount rates
+    const productsWithFullImageUrls = updatedProducts.map(product => ({
+      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
+      brandName: product.brandName.brandName, // Extract brand name string
+      categoryName: product.categoryName.categoryName, // Extract category name string
+      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+      discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
+    }));
+
+    // Register a custom Handlebars helper to group products into rows of 5
+    handlebars.registerHelper('grouped', function (items, groupSize) {
+      const result = [];
+      for (let i = 0; i < items.length; i += groupSize) {
+        result.push(items.slice(i, i + groupSize));
+      }
+      return result;
+    });
+
+    // Generate HTML with template and data
+    const html = template({
+      logoUrl,
+      logoBg,
+      products: productsWithFullImageUrls // Use updated product objects with full URLs
+    });
+    // console.log(html)
+
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      timeout: 60000 // Increase timeout to 60 seconds
+    });
+
+    const page = await browser.newPage();
+
+    // Set content to the HTML template
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.emulateMediaType('screen');
+
+    // Define the upload directory and filename
+    const uploadDir = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
+    const filename = `catalogue-${Date.now()}.pdf`; // e.g., catalogue-2024-09-28.pdf
+    const filePath = path.join(uploadDir, filename);
+
+    // Ensure the directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
+    }
+
+    // Generate PDF and save it to the specified path
+    await page.pdf({
+      format: 'A4',
+      path: filePath, // Save to the specified path
+      printBackground: true,
+      displayHeaderFooter: true,
+      footerTemplate: `
+           <div style="font-size:10px; color:#fff; width:100%; padding:10px 20px; box-sizing:border-box; text-align:right; position:relative;">
+          <span class="footer-part" style="font-size: 10px; font-family: Arial, sans-serif;">
+              <span class="pageNumber number-page" style=" position: relative;
+            right: 0px;
+            bottom: 5px;
+            font-size: 20px;
+            color: white !important;
+            font-weight:600 !;
+             filter: brightness(0) saturate(100%) invert(100%) sepia(5%) saturate(21%) hue-rotate(154deg) brightness(105%) contrast(100%);
+            "></span> 
+          </span>
+      </div>
+      `,
+       
+      margin: {
+        top:'100px',
+        bottom: '40px' // Set a bottom margin to display the footer
+      },
+      pageRanges: '1-', // To generate all pages
+    });
+      
+
+    console.log(`PDF saved successfully to: ${filename}`);
+
+    await browser.close();
+    
+    res.status(200).json({ filename, isOk: true });
+  }
+  catch (err) {
+    console.error('Error generating PDF:', err);
+    next(err);
+  }
+};
+
+exports.getProducts= async (req, res, next) => {
+  const { startPrice , endPrice , category, subCategory, quantity  } = req.body; // Assuming these are the filters sent from the frontend
+
+  // Build the query object based on the filter data
+  const query = {
+    price: { $gte: startPrice, $lte: endPrice },
+    IsActive: true,
+    isAvailable: true,
+    // quantity: { $gte: quantity }, // Check that the product has at least the specified quantity
+  };
+
+  // Conditionally add category and subCategory if they are provided
+  if (category) {
+    query.categoryName = category;
+  }
+  if (subCategory) {
+    query.subCategoryName = subCategory;
+  }
+  // console.log(query)
+  // Find products matching the query
+  const products = await ProductsDetails.find(query)
+    .populate('brandName')
+    .populate('categoryName')
+    .populate('subCategoryName');
+  // console.log(products)
+  // Check if products are found
+  if (!products.length) {
+    return res.status(200).json({ message: 'No products found in the given price range.', products, isOk: false });
+  }
+
+  return res.status(200).json({isOk:true, products})
+}
+
+
+exports.downloadPDFFromFrontend = async (req, res, next) => {
+  try {
+    const data = req.body;  // Assuming this is the array sent from the frontend
+
+    // Build an array of queries based on the filters
+    
+
+    // console.log(queryConditions);
+
+    // Use the $or operator to combine all filter conditions
+    const products = await ProductsDetails.find({_id:data})
+      .populate('brandName')
+      .populate('categoryName')
+      .populate('subCategoryName');
+
+  
+
+    // Now iterate over the products and attach the correct discount
+    
+
+    // Check if products are found
+    if (!products.length) { // Changed from products to updatedProducts
+      return res.status(200).json({ message: 'No products found in the given price range.', products, isOk: false });
+    }
+
+    // Prepare image URLs
+    const logoUrl = `${process.env.REACT_APP_API_URL}/uploads/logo.png`;
+    const logoBg = `${process.env.REACT_APP_API_URL}/uploads/number-shape.png`;
+
+    // Read and compile the HTML template
+    const templateHtml = fs.readFileSync(path.join(__dirname, 'templateFrontend.html'), 'utf8');
+    const template = handlebars.compile(templateHtml, {
+      strict: true,
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
+
+    // Prepare products with full image URLs and discount rates
+    const productsWithFullImageUrls = products.map(product => ({
+      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
+      brandName: product.brandName.brandName, // Extract brand name string
+      categoryName: product.categoryName.categoryName, // Extract category name string
+      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+      // discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
+    }));
+
+    // Register a custom Handlebars helper to group products into rows of 5
+    handlebars.registerHelper('grouped', function (items, groupSize) {
+      const result = [];
+      for (let i = 0; i < items.length; i += groupSize) {
+        result.push(items.slice(i, i + groupSize));
+      }
+      return result;
+    });
+
+    // Generate HTML with template and data
+    const html = template({
+      logoUrl,
+      logoBg,
+      products: productsWithFullImageUrls // Use updated product objects with full URLs
+    });
+    // console.log(html)
+
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      timeout: 60000 // Increase timeout to 60 seconds
+    });
+
+    const page = await browser.newPage();
+
+    // Set content to the HTML template
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.emulateMediaType('screen');
+
+    // Define the upload directory and filename
+    const uploadDir = `${__basedir}/uploads/Catalogue`// Adjust __dirname if necessary
+    const filename = `catalogue-${Date.now()}.pdf`; // e.g., catalogue-2024-09-28.pdf
+    const filePath = path.join(uploadDir, filename);
+
+    // Ensure the directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true }); // Create the directory if it doesn't exist
+    }
+
+    // Generate PDF and save it to the specified path
+    await page.pdf({
+      format: 'A4',
+      path: filePath, // Save to the specified path
+      printBackground: true,
+      displayHeaderFooter: true,
+      footerTemplate: `
+           <div style="font-size:10px; color:#fff; width:100%; padding:10px 20px; box-sizing:border-box; text-align:right; position:relative;">
+          <span class="footer-part" style="font-size: 10px; font-family: Arial, sans-serif;">
+              <span class="pageNumber number-page" style=" position: relative;
+            right: 0px;
+            bottom: 5px;
+            font-size: 20px;
+            color: white !important;
+            font-weight:600 !;
+             filter: brightness(0) saturate(100%) invert(100%) sepia(5%) saturate(21%) hue-rotate(154deg) brightness(105%) contrast(100%);
+            "></span> 
+          </span>
+      </div>
+      `,
+       
+      margin: {
+        top:'100px',
+        bottom: '40px' // Set a bottom margin to display the footer
+      },
+      pageRanges: '1-', // To generate all pages
+    });
+      
+
+    console.log(`PDF saved successfully to: ${filename}`);
+
+    await browser.close();
+    
+    res.status(200).json({ filename, isOk: true });
+  }
+  catch (err) {
+    console.error('Error generating PDF:', err);
+    next(err);
+  }
+};
+
+
+exports.deleteFile = async (req, res) => {
+  const { fileName } = req.body; // assuming the file name is passed in the request body
+
+  // Define the file path
+  const uploadDir = `${__basedir}/uploads/Catalogue`
+  console.log(uploadDir)
+  console.log(fileName)
+  const filePath = path.join(uploadDir, fileName);
+  console.log(filePath)
+
+  try {
+    // Attempt to delete the file asynchronously
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error(`Error removing file: ${err}`);
+        return;
+      }
+    
+      console.log(`File ${filePath} has been successfully removed.`);
+    });
+    // Send success response
+    res.status(200).json({
+      success: true,
+      message: 'File deleted successfully',
+    });
+  } catch (error) {
+    // Handle errors, like if the file doesn't exist
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting file',
+      error: error.message,
+    });
   }
 };

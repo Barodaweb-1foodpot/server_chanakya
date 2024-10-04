@@ -40,7 +40,7 @@ exports.createCategoryMaster = async (req, res) => {
       return res.status(200).json({
         isOk: true,
         data: Category,
-        message: "Art piece created successfully",
+        message: "Record created successfully",
       });
   } catch (err) {
     console.log(err);
@@ -159,7 +159,7 @@ exports.updateCategoryMaster = async (req, res) => {
     );
     res.json( {isOk: true,
       data: update,
-      message: "Art piece updated successfully",});
+      message: "Record updated successfully",});
   } catch (err) {
     res.status(400).send(err);
   }
