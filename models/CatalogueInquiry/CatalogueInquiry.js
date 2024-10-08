@@ -39,6 +39,13 @@ const CatalogueInquiry = new mongoose.Schema(
       type: String,
       // required: true,
     },
+
+    productName:[{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProductDetails", // Reference to the User model
+      // required: true,
+      default: null
+    }],
     
     IsActive: {
       type: Boolean,

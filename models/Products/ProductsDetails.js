@@ -43,6 +43,16 @@ const ProductDetailsSchema = new mongoose.Schema(
       type: Number,
       // required: true,
     },
+
+    additionalPercentage: {
+      type: Number,
+      // required: true,
+    },
+    newPrice: {
+      type: Number,
+      // required: true,
+    },
+
     isAvailable: {
       type: Boolean,
       default: false,
