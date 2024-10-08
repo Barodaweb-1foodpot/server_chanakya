@@ -36,6 +36,8 @@ exports.createProductsDetails = async (req, res) => {
       productName,
       SKU,
       price,
+      additionalPercentage,
+      newPrice,
       IsActive,
       isAvailable,
     } = req.body;
@@ -57,6 +59,8 @@ exports.createProductsDetails = async (req, res) => {
       price,
       IsActive,
       isAvailable,
+      additionalPercentage,
+      newPrice,
     }).save();
 
     res.status(200).json({ isOk: true, data: add, message: "" });
@@ -271,10 +275,10 @@ exports.CategoryProductList = async (req, res) => {
         sortedList = list;
         break;
       case "2": // Price low to high
-        sortedList = list.sort((a, b) => a.price - b.price);
+        sortedList = list.sort((a, b) => a.newPrice - b.newPrice);
         break;
       case "3": // Price high to low
-        sortedList = list.sort((a, b) => b.price - a.price);
+        sortedList = list.sort((a, b) => b.newPrice - a.newPrice);
 
         break;
       case "4": // A to Z
@@ -345,7 +349,7 @@ exports.getUniquefilters = async (req, res) => {
           uniqueCategoryNames: { $addToSet: "$categoryName" }, // Collect unique category ids
           uniqueSubCategoryNames: { $addToSet: "$subCategoryName" }, // Collect unique subcategory ids
           uniqueBrandNames: { $addToSet: "$brandName" }, // Collect unique brand ids
-          uniquePrices: { $addToSet: "$price" }, // Collect unique prices
+          uniquePrices: { $addToSet: "$newPrice" }, // Collect unique prices
         }
       },
       {
@@ -419,7 +423,7 @@ exports.getFilteredProducts = async (req, res) => {
       {
         $match: {
           ...query, // Match the filtered criteria for brand, category, and subcategory
-          price: {
+          newPrice: {
             $gte: value[0],  // value[0] is the minimum price
             $lte: value[1]   // value[1] is the maximum price
           }
@@ -478,6 +482,8 @@ exports.getFilteredProducts = async (req, res) => {
               productName: "$productName",
               productImage: "$productImage",
               price: "$price",
+              newPrice: "$newPrice",
+              additionalPercentage: "$additionalPercentage",
               productsubsmasterId: "$productsubsmasterId",
               categoryName: "$categoryName",
               subCategoryName: "$subCategoryName",
@@ -533,7 +539,6 @@ async function compressImage(file, uploadDir) {
 
     do {
       await sharp(file.path) // Use file.path for the original file location
-        .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
         .jpeg({ quality }) // Adjust the quality to reduce the size
         .toFile(compressedPath);
 
@@ -564,7 +569,7 @@ exports.downloadPDF = async (req, res, next) => {
     const queryConditions = filters.map(filter => {
       // Start building the base query
       let query = {
-        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        newPrice: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
         IsActive: true,
         isAvailable: true,
       };
@@ -605,8 +610,8 @@ exports.downloadPDF = async (req, res, next) => {
       // Find the matching filter condition
       const matchingCondition = queryConditions.find(condition => {
         return (
-          product.price >= condition.price.$gte &&
-          product.price <= condition.price.$lte &&
+          product.newPrice >= condition.newPrice.$gte &&
+          product.newPrice <= condition.newPrice.$lte &&
           (!condition.categoryName || product.categoryName.equals(condition.categoryName)) &&
           (!condition.subCategoryName || product.subCategoryName.equals(condition.subCategoryName))
         );
@@ -647,7 +652,7 @@ exports.downloadPDF = async (req, res, next) => {
       brandName: product.brandName.brandName, // Extract brand name string
       categoryName: product.categoryName.categoryName, // Extract category name string
       subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
-      discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
+      discountrate: product.discount ? product.newPrice - ((product.newPrice * product.discount) / 100) : product.newPrice // Calculate discounted price if discount exists
     }));
 
     // Register a custom Handlebars helper to group products into rows of 5
@@ -735,7 +740,7 @@ exports.getProducts= async (req, res, next) => {
 
   // Build the query object based on the filter data
   const query = {
-    price: { $gte: startPrice, $lte: endPrice },
+    newPrice: { $gte: startPrice, $lte: endPrice },
     IsActive: true,
     isAvailable: true,
     // quantity: { $gte: quantity }, // Check that the product has at least the specified quantity

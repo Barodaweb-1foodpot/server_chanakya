@@ -51,7 +51,7 @@ exports.createClientMaster = async (req, res) => {
 
 exports.listClientMaster = async (req, res) => {
   try {
-    const list = await ClientMaster.find({IsActive : true}).sort({ createdAt: -1 }).exec();
+    const list = await ClientMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -195,7 +195,6 @@ async function compressImage(file, uploadDir) {
 
     do {
       await sharp(file.path)
-        .resize({ width: 1920 }) // Resize image width to 1920px, maintaining aspect ratio
         .jpeg({ quality }) // Adjust the quality to reduce the size
         .toFile(compressedPath);
 
