@@ -1,4 +1,5 @@
 const UserMaster = require("../../models/UserMaster/UserMaster");
+const OrderHistory = require("../../models/OrderHistory/OrderHistory")
 const fs = require("fs");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -23,6 +24,13 @@ exports.getUserMasterDetails = async (req, res) => {
           Name: 1,
           Email: 1,
           Mobile: 1,
+          Password: 1,
+          companyName: 1,
+          designation: 1,
+          lastname: 1,
+          companyEmail: 1,
+          companyContactNo: 1,
+          companyAddress: 1,
           cartExists: { $cond: { if: { $gt: [{ $size: "$cart" }, 0] }, then: true, else: false } },  // Check if cart has items
           cart: 1
         }
@@ -96,6 +104,12 @@ exports.getUserMasterDetails = async (req, res) => {
           Name: { $first: "$Name" },
           Email: { $first: "$Email" },
           Mobile: { $first: "$Mobile" },
+          companyAddress: { $first: "$companyAddress" },
+          companyContactNo: { $first: "$companyContactNo" },
+          companyEmail: { $first: "$companyEmail" },
+          lastname: { $first: "$lastname" },
+          designation: { $first: "$designation" },
+          companyName: { $first: "$companyName" },
           cart: {
             $push: {
               productName: "$productDetails",
@@ -125,7 +139,12 @@ exports.getUserMasterDetails = async (req, res) => {
     if (userData.length === 0) {
       const basicUserDetails = await UserMaster.findOne(
         { _id: req.params.Email },
-        { Name: 1, Email: 1, Mobile: 1 }
+        { Name: 1, Email: 1, Mobile: 1 ,companyName: 1,
+          designation: 1,
+          lastname: 1,
+          companyEmail: 1,
+          companyContactNo: 1,
+          companyAddress: 1,}
       );
       return res.json({ ...basicUserDetails._doc, cart: [] });
     }
@@ -466,5 +485,51 @@ exports.removeCartItem = async (req, res) => {
   } catch (error) {
     console.error('Error removing cart item:', error);
     res.status(500).json({ success: false, message: 'Error removing item from cart' ,isOk:false });
+  }
+};
+
+
+
+
+exports.updateUserMasterDetailsOrder = async (req, res) => {
+  try {
+    const { cartNew } = req.body;  // Get the cart from the request body
+    const userId = req.params._id;  // Get the user ID from the params
+    let { ...fieldvalues } = req.body;
+
+    // Step 1: Update the cart in UserMaster to an empty array
+    const user = await UserMaster.findOneAndUpdate(
+      { _id: userId },
+      fieldvalues,  // Update other user details from req.body
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Step 2: Find the last orderNo from OrderHistory
+    const lastOrder = await OrderHistory.findOne({}).sort({ orderNo: -1 }).exec();
+    const newOrderNo = lastOrder ? lastOrder.orderNo + 1 : 1;  // Increment if exists, else start at 1
+
+    // Step 3: Create a new order in OrderHistory with the new orderNo
+    const newOrder = await OrderHistory.create({
+      user: userId,
+      cart: cartNew,  // Use the cart from the request body
+      IsActive: true,
+      orderNo: newOrderNo ,
+      remark:fieldvalues.remark,
+      date:fieldvalues.date,
+    });
+
+    // Step 4: Update the UserMaster with the new OrderHistory _id
+    user.orderHistory.push(newOrder._id);
+    await user.save();
+
+    // Return the updated user information
+    res.json({ message: "Order created successfully", user, orderHistory: newOrder, isOk: true });
+
+  } catch (err) {
+    res.status(400).send(err);
   }
 };

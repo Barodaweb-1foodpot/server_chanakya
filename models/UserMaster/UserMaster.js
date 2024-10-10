@@ -12,7 +12,7 @@ const UserMasterSchema = new mongoose.Schema(
       required: true,
     },
     Mobile: {
-      type: String,
+      type: Number,
       required: true,
     },
     
@@ -36,11 +36,39 @@ const UserMasterSchema = new mongoose.Schema(
       },
       
     ],
-   
+    companyName: {
+      type: String,
+      default:''
+    },
+    designation: {
+      type: String,
+      default:''
+    },
+    lastname: {
+      type: String,
+      default:''
+    },
+    companyEmail: {
+      type: String,
+      default:''
+    },
+    companyContactNo: {
+      type: Number,
+      default:''
+    },
+    companyAddress: {
+      type: String,
+      default:''
+    },
+    
     IsActive: {
       type: Boolean,
       default: true,
     },
+    orderHistory:[{
+      type: mongoose.Schema.Types.ObjectId,
+        ref: "OrderHistory",}
+    ]
 
   },
   { timestamps: true }

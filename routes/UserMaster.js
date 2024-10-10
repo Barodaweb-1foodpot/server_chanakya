@@ -17,7 +17,8 @@ const {
   getUserMasterDetail,
   otpSignInRequest,
   updateUserCart,
-  removeCartItem
+  removeCartItem,
+  updateUserMasterDetailsOrder
 } = require("../controllers/UserMaster/UserMaster");
 
 
@@ -80,5 +81,10 @@ router.post("/auth/user/otp-signin-request", catchAsync(otpSignInRequest));
 router.post("/auth/update/user-cart", catchAsync(updateUserCart))
 
 router.post("/auth/remove/user-cart-item", catchAsync(removeCartItem))
+
+router.put(
+  "/auth/update/UserMasterDetails-order/:_id",
+  catchAsync(updateUserMasterDetailsOrder)
+);
 
 module.exports = router;
