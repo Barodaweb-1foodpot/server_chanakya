@@ -9,7 +9,7 @@ const handlebars = require('handlebars');
 
 exports.createCatalogueInquiry = async (req, res) => {
     try {
-        const { categoryName, subCategoryName, startPrice, endPrice, quantity, user, productName } = req.body
+        const { categoryName, subCategoryName, startPrice, endPrice, quantity, user, productName ,estimatedDate} = req.body
 
         let newProducts
         if (typeof productName === 'string') {
@@ -27,6 +27,7 @@ exports.createCatalogueInquiry = async (req, res) => {
             endPrice,
             quantity,
             user,
+            estimatedDate,
             productName: newProducts
         }).save();
 

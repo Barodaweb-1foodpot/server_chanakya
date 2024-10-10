@@ -10,7 +10,8 @@ const {
     getBrandMaster,
     updateBrandMaster,
     removeBrandMaster,
-    listActiveBrands
+    listActiveBrands,
+    getBrandMasterDetails
 } = require("../controllers/Master/BrandMaster");
 const multer = require("multer");
 const path= require('path')
@@ -36,7 +37,7 @@ const multerStorage = multer.diskStorage({
 });
 const upload = multer({ storage: multerStorage });
 
-router.post("/auth/create/BrandMaster",upload.single("logo"), catchAsync(createBrandMaster));
+router.post("/auth/create/BrandMaster",upload.any(), catchAsync(createBrandMaster));
 
 router.get("/auth/list/BrandMaster", catchAsync(listBrandMaster));
 
@@ -44,10 +45,12 @@ router.post("/auth/listByparams/BrandMaster", catchAsync(listBrandMasterByParams
 
 router.get("/auth/get/BrandMaster/:_id", catchAsync(getBrandMaster));
 
-router.put("/auth/update/BrandMaster/:_id",upload.single("logo"), catchAsync(updateBrandMaster));
+router.put("/auth/update/BrandMaster/:_id",upload.any(), catchAsync(updateBrandMaster));
 
 router.delete("/auth/remove/BrandMaster/:_id", catchAsync(removeBrandMaster));
 
 router.get("/auth/listActive/Brands" , catchAsync(listActiveBrands));
+
+router.get("/auth/get/BrandMasterDetails/:_id", catchAsync(getBrandMasterDetails));
 
 module.exports = router;

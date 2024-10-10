@@ -51,6 +51,11 @@ const CatalogueInquiry = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    estimatedDate: {
+
+      type:Date,
+      default:''
+    }
   
    
   },

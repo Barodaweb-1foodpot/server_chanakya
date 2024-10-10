@@ -18,6 +18,20 @@ const BrandMasterSchema = new mongoose.Schema(
     IsActive: {
       type: Boolean,
     },
+    brandBrochure: [
+      {
+        categoryName: {
+          type: mongoose.Schema.Types.ObjectId,
+        ref: "CategoryMaster",
+        },
+        title: {
+          type: String,
+        },
+        linkdoc: {
+          type: String,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

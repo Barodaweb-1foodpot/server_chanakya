@@ -2,7 +2,7 @@ const BrandMaster = require("../../models/Master/BrandMaster");
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-
+const mongoose = require('mongoose');
 
 exports.getBrandMaster = async (req, res) => {
   try {
@@ -13,6 +13,74 @@ exports.getBrandMaster = async (req, res) => {
   }
 };
 
+exports.getBrandMasterDetails = async (req, res) => {
+  try {
+    const find = await BrandMaster.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(req.params._id) }, // Match the document by its _id
+      },
+      {
+        $unwind: { 
+          path: "$brandBrochure", 
+          preserveNullAndEmptyArrays: true // Handle cases where brandBrochure is empty
+        },
+      },
+      {
+        $lookup: {
+          from: "categorymasters", // The collection containing CategoryMaster details
+          localField: "brandBrochure.categoryName", // Field in brandBrochure that references CategoryMaster
+          foreignField: "_id", // Field in CategoryMaster to match against
+          as: "brandBrochure.categoryDetails", // Store the lookup result in categoryDetails inside brandBrochure
+        },
+      },
+      {
+        $unwind: { 
+          path: "$brandBrochure.categoryDetails", 
+          preserveNullAndEmptyArrays: true // Handle cases where categoryDetails might be empty
+        },
+      },
+      {
+        $group: {
+          _id: "$_id", // Group back by the _id of BrandMaster
+          brandName: { $first: "$brandName" },
+          SrNo: { $first: "$SrNo" },
+          logo: { $first: "$logo" },
+          IsActive: { $first: "$IsActive" },
+          brandBrochure: {
+            $push: {
+              title: "$brandBrochure.title", // Retain the original title field
+              linkdoc: "$brandBrochure.linkdoc", // Retain the original linkdoc field
+              categoryDetails: "$brandBrochure.categoryDetails", // Include the categoryDetails from the lookup
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          brandBrochure: {
+            $cond: { 
+              if: { $eq: ["$brandBrochure", [{}]] }, 
+              then: [], 
+              else: "$brandBrochure" 
+            } // Ensure empty brandBrochure arrays are returned as []
+          },
+        },
+      },
+    ]);
+  
+    if (find.length === 0) {
+      return res.status(404).json({ message: "Brand not found" });
+    }
+  
+    // Respond with the aggregated result (only one item expected)
+    res.json(find[0]);
+  } catch (error) {
+    return res.status(500).send(error);
+  }
+  
+};
+
+
 exports.createBrandMaster = async (req, res) => {
   try {
     const uploadDir = `${__basedir}/uploads/BrandMaster`;
@@ -20,19 +88,40 @@ exports.createBrandMaster = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    let logo = req.file ? await compressImage(req.file, uploadDir) : null;
+    const additionalLinkFiles = {};
+    let logo
+    req.files.forEach(file => {
+      if (file.fieldname === 'logo') {
+        logo = `uploads/BrandMaster/${file.filename}`;
+      } else if (file.fieldname.startsWith('brandBrochure')) {
+        const index = parseInt(file.fieldname.match(/\d+/)[0]);
+        additionalLinkFiles[index] = file.filename;
+      }
+    });
+
+    // let logo = req.file ? await compressImage(req.file, uploadDir) : null;
    
     let { 
       brandName,
       SrNo,
       IsActive,
+      brandBrochure,
     } = req.body;
+
+    const extractedObjectsAdditionalLink = brandBrochure ? brandBrochure.map((item, index) => {
+      return {
+        categoryName: item.categoryName,
+        title: item.title,
+        linkdoc: additionalLinkFiles[index] || additionalLinkFiles
+      };
+    }) : [];
 
       const newCategory = new BrandMaster({
         brandName,
         SrNo,
         IsActive,
         logo : logo,
+        brandBrochure: extractedObjectsAdditionalLink,
       });
 
       const Category = await newCategory.save();
@@ -144,26 +233,48 @@ exports.listBrandMasterByParams = async (req, res) => {
 
 exports.updateBrandMaster = async (req, res) => {
   try {
-    let logo = req.file
-      ? `uploads/BrandMaster/${req.file.filename}`
-      : null;
     let fieldvalues = { ...req.body };
-    if (logo != null) {
-      fieldvalues.logo = logo;
+
+    const additionalLinkFiles = {};
+    
+    req.files.forEach(file => {
+      if (file.fieldname === 'logo') {
+        fieldvalues.logo = `uploads/BrandMaster/${file.filename}`;
+      } else if (file.fieldname.startsWith('brandBrochure')) {
+        const index = parseInt(file.fieldname.match(/\d+/)[0]);
+        additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
+      }
+    });
+
+    const extractedObjectsAdditionalLink = fieldvalues.brandBrochure ? fieldvalues.brandBrochure.map((item, index) => {
+      return {
+        categoryName: item.categoryName,
+        title: item.title,
+        // Ensure linkdoc is either a string or null
+        linkdoc: additionalLinkFiles[index] || item.linkdoc || null
+      };
+    }) : [];
+
+    if (extractedObjectsAdditionalLink) {
+      fieldvalues.brandBrochure = extractedObjectsAdditionalLink;
     }
-   
+
     const update = await BrandMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
     );
-    res.json( {isOk: true,
+
+    res.json({
+      isOk: true,
       data: update,
-      message: "Record updated successfully",});
+      message: "Record updated successfully",
+    });
   } catch (err) {
     res.status(400).send(err);
   }
 };
+
 
 exports.removeBrandMaster = async (req, res) => {
   try {
