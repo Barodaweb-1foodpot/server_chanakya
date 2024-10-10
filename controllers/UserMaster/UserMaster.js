@@ -13,18 +13,27 @@ const createToken = (id) => {
 exports.getUserMasterDetails = async (req, res) => {
   try {
     const userData = await UserMaster.aggregate([
-      // Match the specific user by Email (as _id)
       {
         $match: { _id: new mongoose.Types.ObjectId(req.params.Email) }
       },
-      // Unwind the cart array to treat each item as a separate document
+      // Project the cart only if it's not empty, otherwise skip the processing of cart
       {
-        $unwind: {
-          path: "$cart",
-          // preserveNullAndEmptyArrays: false
+        $project: {
+          _id: 1,
+          Name: 1,
+          Email: 1,
+          Mobile: 1,
+          cartExists: { $cond: { if: { $gt: [{ $size: "$cart" }, 0] }, then: true, else: false } },  // Check if cart has items
+          cart: 1
         }
       },
-      // Lookup the ProductDetails from productName in cart
+      // Only proceed with the next stages if the cart exists and is not empty
+      {
+        $match: { cartExists: true }
+      },
+      {
+        $unwind: "$cart"
+      },
       {
         $lookup: {
           from: "productdetails",  // Reference to ProductDetails collection
@@ -33,14 +42,12 @@ exports.getUserMasterDetails = async (req, res) => {
           as: "productDetails"  // Output array field
         }
       },
-      // Unwind productDetails (it will be an array because of the lookup)
       {
         $unwind: {
           path: "$productDetails",
           preserveNullAndEmptyArrays: true
         }
       },
-      // Lookup the BrandMaster for the brandName field inside productDetails
       {
         $lookup: {
           from: "brandmasters",  // Reference to BrandMaster collection
@@ -49,14 +56,12 @@ exports.getUserMasterDetails = async (req, res) => {
           as: "brandDetails"  // Output array field for the brand details
         }
       },
-      // Unwind the brandDetails (it will also be an array)
       {
         $unwind: {
           path: "$brandDetails",
           preserveNullAndEmptyArrays: true
         }
       },
-      // Lookup the CategoryMaster for the categoryName field inside productDetails
       {
         $lookup: {
           from: "categorymasters",  // Reference to CategoryMaster collection
@@ -65,14 +70,12 @@ exports.getUserMasterDetails = async (req, res) => {
           as: "categoryDetails"  // Output array field for the category details
         }
       },
-      // Unwind the categoryDetails
       {
         $unwind: {
           path: "$categoryDetails",
           preserveNullAndEmptyArrays: true
         }
       },
-      // Lookup the SubCategoryMaster for the subCategoryName field inside productDetails
       {
         $lookup: {
           from: "subcategorymasters",  // Reference to SubCategoryMaster collection
@@ -81,14 +84,12 @@ exports.getUserMasterDetails = async (req, res) => {
           as: "subCategoryDetails"  // Output array field for the subcategory details
         }
       },
-      // Unwind the subCategoryDetails
       {
         $unwind: {
           path: "$subCategoryDetails",
           preserveNullAndEmptyArrays: true
         }
       },
-      // Group back to get the cart array in a nested form with product, brand, category, and subcategory details
       {
         $group: {
           _id: "$_id",  // Group by user ID
@@ -105,9 +106,29 @@ exports.getUserMasterDetails = async (req, res) => {
             }
           }
         }
+      },
+      // Check if cart is empty after processing, and replace with [] if no cart items are found
+      {
+        $addFields: {
+          cart: {
+            $cond: {
+              if: { $eq: [{ $size: "$cart" }, 0] },  // If the size of cart is 0
+              then: [],  // Set cart to an empty array
+              else: "$cart"  // Otherwise, keep the populated cart
+            }
+          }
+        }
       }
-      
     ]);
+
+    // If the cart was empty, the cart field will remain an empty array
+    if (userData.length === 0) {
+      const basicUserDetails = await UserMaster.findOne(
+        { _id: req.params.Email },
+        { Name: 1, Email: 1, Mobile: 1 }
+      );
+      return res.json({ ...basicUserDetails._doc, cart: [] });
+    }
 
     // Send the user data with populated product, brand, category, and subcategory details
     res.json(userData[0]);  // Since aggregate returns an array, we send the first result
@@ -116,9 +137,6 @@ exports.getUserMasterDetails = async (req, res) => {
     return res.status(500).send(error);
   }
 };
-
-
-
 
 exports.getUserMasterDetail = async (req, res) => {
   try {
