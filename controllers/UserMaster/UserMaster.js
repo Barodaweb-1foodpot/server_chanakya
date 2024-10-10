@@ -388,12 +388,17 @@ const sendLoginOTPEmail = async (email, otp) => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      tls: {
+        rejectUnauthorized: false, // Allows self-signed certificates (only for development)
+      },
     });
+    
     const mailOptions = {
       to: email,
-      subject: "Sign In Verfification code for Chanakya",
+      subject: "Sign In Verification code for Chanakya",
       html: `This is your ${otp}`, // Use html property to render HTML content
     };
+    
     return await transporter.sendMail(mailOptions);
   } catch (error) {
     console.error("Error sending OTP email:", error);
