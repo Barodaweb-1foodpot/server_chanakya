@@ -156,7 +156,16 @@ exports.listProductsDetailsByParams = async (req, res) => {
               productName: { $regex: match, $options: "i" },
             },
             {
+              price: !isNaN(Number(match)) ? { $eq: Number(match) } : null,
+            },
+            {
+              newPrice: !isNaN(Number(match)) ? { $eq: Number(match) } : null,
+            },
+            {
               "category.categoryName": { $regex: match, $options: "i" },
+            },
+            {
+              "SubCategoryDetail.subCategoryName": { $regex: match, $options: "i" },
             },
           ],
         },
@@ -226,6 +235,14 @@ exports.listProductsDetailsByParams = async (req, res) => {
 
 exports.updateProductsDetails = async (req, res) => {
   try {
+    const uploadDir = `${__basedir}/uploads/Products`;
+
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    console.log("req.file",req.file)
     let productImage = req.file
       ? await compressImage(req.file, uploadDir)
       : null;
@@ -531,8 +548,9 @@ exports.getLastSKUNo = async (req, res) => {
 async function compressImage(file, uploadDir) {
   // Ensure uploadDir is a string path
   const filePath = path.join(uploadDir, file.filename);
+  console.log(filePath)
   const compressedPath = path.join(uploadDir, `compressed-${file.filename}`);
-
+  console.log(compressedPath)
   try {
     let quality = 80;
     let compressed = false;

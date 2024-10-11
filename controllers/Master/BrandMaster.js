@@ -95,7 +95,7 @@ exports.createBrandMaster = async (req, res) => {
         logo = `uploads/BrandMaster/${file.filename}`;
       } else if (file.fieldname.startsWith('brandBrochure')) {
         const index = parseInt(file.fieldname.match(/\d+/)[0]);
-        additionalLinkFiles[index] = file.filename;
+        additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
       }
     });
 

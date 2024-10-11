@@ -53,8 +53,8 @@ exports.createSubCategoryMaster = async (req, res) => {
 };
 exports.listActiveCategoriesByCategory = async (req, res) => {
   try {
-    console.log("reqq",req.params._id);
-    const list = await SubCategoryMaster.find({IsActive : true, categoryName:req.params._id} ).sort({ SrNo: 1 }).exec();
+    console.log("reqq",req.params);
+    const list = await SubCategoryMaster.find({IsActive : true, categoryName:req.params} ).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (error) {
     Console.log(error);
