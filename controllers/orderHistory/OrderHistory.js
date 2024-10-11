@@ -105,3 +105,122 @@ exports.getOrderHistoryById = async (req, res) => {
     }
   };
   
+
+  exports.listOrderHistoryByParams = async (req, res) => {
+    try {
+      let { skip , per_page , sorton, sortdir, match , IsActive } = req.body;
+  
+      let query = [
+        {
+          $match: { IsActive: IsActive },
+        },
+        {
+          $lookup: {
+            from: "usermasters",
+            localField: "user",
+            foreignField: "_id",
+            as: "userDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$userDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: "$cart",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "productdetails", // Reference to ProductDetails collection
+            localField: "cart.productName", // productName field in cart
+            foreignField: "_id", // The _id in ProductDetails collection
+            as: "productDetails", // Output array field
+          },
+        },
+        {
+          $unwind: {
+            path: "$productDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $match: {
+            $or: [
+              {
+                "productDetails.productName": { $regex: match, $options: "i" },
+              },
+              {
+                "userDetails.Name": { $regex: match, $options: "i" },
+              },
+              {orderNo: { $regex: match, $options: "i" },}
+            ],
+          },
+        },
+        {
+            $group: {
+              _id: "$_id",  // Group by OrderHistory ID
+              user: { $first: "$userDetails" },
+              orderNo: { $first: "$orderNo" },
+              date: { $first: "$date" },
+              remark: { $first: "$remark" },
+              createdAt :{ $first: "$createdAt" },
+              cart: {
+                $push: {
+                  productName: "$productDetails",
+                  quantity: "$cart.quantity",
+                }
+              }
+            }
+          },
+        {
+          $facet: {
+            stage1: [
+              {
+                $group: {
+                  _id: null,
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            stage2: [
+              { $skip: skip },
+              { $limit: per_page },
+            ],
+          },
+        },
+        {
+          $unwind: {
+            path: "$stage1",
+          },
+        },
+        {
+          $project: {
+            count: "$stage1.count",
+            data: "$stage2",
+          },
+        },
+      ];
+  
+      // Apply sorting
+      if (sorton && sortdir) {
+        let sort = {};
+        sort[sorton] = sortdir === "desc" ? -1 : 1;
+        query.unshift({ $sort: sort });
+      } else {
+        query.unshift({ $sort: { createdAt: -1 } });
+      }
+  
+      // Execute the query
+      const list = await OrderHistory.aggregate(query);
+  
+      res.json(list);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  };
+  
