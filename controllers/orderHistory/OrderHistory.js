@@ -69,7 +69,7 @@ exports.getOrderHistoryById = async (req, res) => {
             _id: "$_id",  // Group by OrderHistory ID
             user: { $first: "$userDetails" },
             orderNo: { $first: "$orderNo" },
-            date: { $first: "$date" },
+            estimatedDate: { $first: "$estimatedDate" },
             remark: { $first: "$remark" },
             createdAt :{ $first: "$createdAt" },
             cart: {
@@ -87,7 +87,7 @@ exports.getOrderHistoryById = async (req, res) => {
         const basicUserDetails = await UserMaster.findOne(
           { _id: userId },  // Assuming _id is being used to find user details
           {
-            user: 1, orderNo: 1, date: 1, remark: 1,createdAt:1
+            user: 1, orderNo: 1, estimatedDate: 1, remark: 1,createdAt:1
            
           }
         );
@@ -157,7 +157,9 @@ exports.getOrderHistoryById = async (req, res) => {
               {
                 "userDetails.Name": { $regex: match, $options: "i" },
               },
+              {estimatedDate: { $regex: match, $options: "i" },},
               {orderNo: { $regex: match, $options: "i" },}
+              
             ],
           },
         },
@@ -166,7 +168,7 @@ exports.getOrderHistoryById = async (req, res) => {
               _id: "$_id",  // Group by OrderHistory ID
               user: { $first: "$userDetails" },
               orderNo: { $first: "$orderNo" },
-              date: { $first: "$date" },
+              estimatedDate: { $first: "$estimatedDate" },
               remark: { $first: "$remark" },
               createdAt :{ $first: "$createdAt" },
               cart: {
@@ -212,7 +214,7 @@ exports.getOrderHistoryById = async (req, res) => {
         sort[sorton] = sortdir === "desc" ? -1 : 1;
         query.unshift({ $sort: sort });
       } else {
-        query.unshift({ $sort: { createdAt: -1 } });
+        query.unshift({ $sort: { estimatedDate: -1 } });
       }
   
       // Execute the query
@@ -255,7 +257,7 @@ exports.getOrderHistoryById = async (req, res) => {
             _id: "$_id",  // Group by OrderHistory ID (which represents each order)
             user: { $first: "$user" },  // Include the user field
             orderNo: { $first: "$orderNo" },  // Include order number
-            date: { $first: "$date" },  // Include order date
+            estimatedDate: { $first: "$estimatedDate" },  // Include order date
             remark: { $first: "$remark" },  // Include order remarks
             createdAt: { $first: "$createdAt" },  // Include the order creation date
             cart: {
@@ -272,7 +274,7 @@ exports.getOrderHistoryById = async (req, res) => {
       if (userData.length === 0) {
         const basicUserDetails = await UserMaster.findOne(
           { _id: userId },
-          { user: 1, orderNo: 1, date: 1, remark: 1, createdAt: 1 } // Fetch basic user details
+          { user: 1, orderNo: 1, estimatedDate: 1, remark: 1, createdAt: 1 } // Fetch basic user details
         );
         
         if (!basicUserDetails) {
