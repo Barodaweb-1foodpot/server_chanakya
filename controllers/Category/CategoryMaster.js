@@ -20,34 +20,45 @@ exports.createCategoryMaster = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    let logo = req.file ? await compressImage(req.file, uploadDir) : null;
-   
-    let { 
+    let logo = null;
+    let logoBackground = null;
+    let additionalLinkFiles = [];
+
+    // Using for...of loop to handle async/await properly
+    for (const file of req.files) {
+      if (file.fieldname === 'logo') {
+        logo = file.filename ? await compressImage(file, uploadDir) : null;
+      } else if (file.fieldname === 'logoBackground') {
+        logoBackground = file.filename ? await compressImage(file, uploadDir) : null;
+      } else if (file.fieldname.startsWith('brandBrochure')) {
+        const index = parseInt(file.fieldname.match(/\d+/)[0]);
+        additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
+      }
+    }
+
+    let { categoryName, SrNo, IsActive } = req.body;
+
+    const newCategory = new CategoryMaster({
       categoryName,
       SrNo,
       IsActive,
-    } = req.body;
+      logo: logo, // Using the processed logo
+      logoBackground: logoBackground, // Adding logoBackground if needed
+    });
 
-      const newCategory = new CategoryMaster({
-        categoryName,
-        SrNo,
-        IsActive,
-        logo : logo,
-      });
+    const Category = await newCategory.save();
 
-      const Category = await newCategory.save();
-      
-      return res.status(200).json({
-        isOk: true,
-        data: Category,
-        message: "Record created successfully",
-      });
+    return res.status(200).json({
+      isOk: true,
+      data: Category,
+      message: "Record created successfully",
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send("Internal Server Error");
   }
 };
- 
+
 
 exports.listCategoryMaster = async (req, res) => {
   try {
@@ -144,26 +155,60 @@ exports.listCategoryMasterByParams = async (req, res) => {
 
 exports.updateCategoryMaster = async (req, res) => {
   try {
-    let logo = req.file
-      ? `uploads/CategoryMaster/${req.file.filename}`
-      : null;
+    const uploadDir = `${__basedir}/uploads/CategoryMaster`;
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    
     let fieldvalues = { ...req.body };
-    if (logo != null) {
+    let logo = null;
+    let logoBackground = null;
+
+    // Check for multiple files (logo and logoBackground) in the request
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        console.log(file)
+        if (file.fieldname === 'logo') {
+          logo = file.filename ? await compressImage(file, uploadDir) : null;
+        } else if (file.fieldname === 'logoBackground') {
+          logoBackground = file.filename ? await compressImage(file, uploadDir) : null;
+          console.log(logoBackground)
+        }
+      }
+    }
+    console.log(logoBackground)
+
+    // Only update logo if a new logo is provided
+    if (logo) {
       fieldvalues.logo = logo;
     }
-   
+
+    // Only update logoBackground if a new logoBackground is provided
+    if (logoBackground) {
+      fieldvalues.logoBackground = logoBackground;
+    }
+    console.log(fieldvalues)
+    // Find the category by _id and update it with the new field values
     const update = await CategoryMaster.findOneAndUpdate(
       { _id: req.params._id },
-      fieldvalues,
-      { new: true }
+      { $set: fieldvalues },  // Use $set to only update provided fields
+      { new: true }  // Return the updated document
     );
-    res.json( {isOk: true,
+
+    // Send response with the updated category
+    res.json({
+      isOk: true,
       data: update,
-      message: "Record updated successfully",});
+      message: "Record updated successfully",
+    });
   } catch (err) {
+    // Send error response in case of failure
     res.status(400).send(err);
   }
 };
+
+
 
 exports.removeCategoryMaster = async (req, res) => {
   try {

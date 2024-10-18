@@ -3,6 +3,7 @@ const multer = require("multer");
 const path = require('path')
 const fs = require('fs')
 const sharp = require('sharp'); // Add sharp import
+const nodemailer = require("nodemailer");
 // const ejs = require('ejs');
 const handlebars = require('handlebars');
 // require('web-streams-polyfill');
@@ -242,7 +243,7 @@ exports.updateProductsDetails = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    console.log("req.file",req.file)
+    console.log("req.file", req.file)
     let productImage = req.file
       ? await compressImage(req.file, uploadDir)
       : null;
@@ -366,7 +367,7 @@ exports.getUniquefilters = async (req, res) => {
           uniqueCategoryNames: { $addToSet: "$categoryName" }, // Collect unique category ids
           uniqueSubCategoryNames: { $addToSet: "$subCategoryName" }, // Collect unique subcategory ids
           uniqueBrandNames: { $addToSet: "$brandName" }, // Collect unique brand ids
-          uniquePrices: { $addToSet: "$newPrice" }, // Collect unique prices
+          uniquePrices: { $addToSet: "$price" }, // Collect unique prices
         }
       },
       {
@@ -440,7 +441,7 @@ exports.getFilteredProducts = async (req, res) => {
       {
         $match: {
           ...query, // Match the filtered criteria for brand, category, and subcategory
-          newPrice: {
+          price: {
             $gte: value[0],  // value[0] is the minimum price
             $lte: value[1]   // value[1] is the maximum price
           }
@@ -536,7 +537,7 @@ exports.getLastSKUNo = async (req, res) => {
     const lastBill = await ProductsDetails.findOne().sort({ createdAt: -1 });
 
     if (!lastBill) {
-      return res.status(200).json({ message: "No Product found" , isOk:false });
+      return res.status(200).json({ message: "No Product found", isOk: false });
     }
 
     return res.status(200).json({ lastSKUNo: lastBill.SKU });
@@ -587,7 +588,7 @@ exports.downloadPDF = async (req, res, next) => {
     const queryConditions = filters.map(filter => {
       // Start building the base query
       let query = {
-        newPrice: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
         IsActive: true,
         isAvailable: true,
       };
@@ -621,21 +622,21 @@ exports.downloadPDF = async (req, res, next) => {
       .populate('categoryName')
       .populate('subCategoryName');
 
-  
+
 
     // Now iterate over the products and attach the correct discount
     const updatedProducts = products.map(product => {
       // Find the matching filter condition
       const matchingCondition = queryConditions.find(condition => {
         return (
-          product.newPrice >= condition.newPrice.$gte &&
-          product.newPrice <= condition.newPrice.$lte &&
+          product.price >= condition.price.$gte &&
+          product.price <= condition.price.$lte &&
           (!condition.categoryName || product.categoryName.equals(condition.categoryName)) &&
           (!condition.subCategoryName || product.subCategoryName.equals(condition.subCategoryName))
         );
       });
 
-      
+
       // Attach the discount to the product if a matching condition is found
       if (matchingCondition) {
         product.discount = matchingCondition.discount;  // Add the discount to the product
@@ -732,19 +733,19 @@ exports.downloadPDF = async (req, res, next) => {
           </span>
       </div>
       `,
-       
+
       margin: {
-        top:'100px',
+        top: '100px',
         bottom: '40px' // Set a bottom margin to display the footer
       },
       pageRanges: '1-', // To generate all pages
     });
-      
+
 
     console.log(`PDF saved successfully to: ${filename}`);
 
     await browser.close();
-    
+
     res.status(200).json({ filename, isOk: true });
   }
   catch (err) {
@@ -753,12 +754,12 @@ exports.downloadPDF = async (req, res, next) => {
   }
 };
 
-exports.getProducts= async (req, res, next) => {
-  const { startPrice , endPrice , category, subCategory, quantity  } = req.body; // Assuming these are the filters sent from the frontend
+exports.getProducts = async (req, res, next) => {
+  const { startPrice, endPrice, category, subCategory, quantity } = req.body; // Assuming these are the filters sent from the frontend
 
   // Build the query object based on the filter data
   const query = {
-    newPrice: { $gte: startPrice, $lte: endPrice },
+    price: { $gte: startPrice, $lte: endPrice },
     IsActive: true,
     isAvailable: true,
     // quantity: { $gte: quantity }, // Check that the product has at least the specified quantity
@@ -783,29 +784,29 @@ exports.getProducts= async (req, res, next) => {
     return res.status(200).json({ message: 'No products found in the given price range.', products, isOk: false });
   }
 
-  return res.status(200).json({isOk:true, products})
+  return res.status(200).json({ isOk: true, products })
 }
 
 
 exports.downloadPDFFromFrontend = async (req, res, next) => {
   try {
-    const data = req.body;  // Assuming this is the array sent from the frontend
+    const { AllProduct, discount } = req.body;  // Assuming this is the array sent from the frontend
 
     // Build an array of queries based on the filters
-    
+
 
     // console.log(queryConditions);
 
     // Use the $or operator to combine all filter conditions
-    const products = await ProductsDetails.find({_id:data})
+    const products = await ProductsDetails.find({ _id: AllProduct })
       .populate('brandName')
       .populate('categoryName')
       .populate('subCategoryName');
 
-  
+
 
     // Now iterate over the products and attach the correct discount
-    
+
 
     // Check if products are found
     if (!products.length) { // Changed from products to updatedProducts
@@ -824,15 +825,29 @@ exports.downloadPDFFromFrontend = async (req, res, next) => {
       allowProtoMethodsByDefault: true
     });
 
+    let productsWithFullImageUrls
+    if (discount != '') {
+      console.log(discount)
+      productsWithFullImageUrls = products.map(product => ({
+        ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+        productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
+        brandName: product.brandName.brandName, // Extract brand name string
+        categoryName: product.categoryName.categoryName, // Extract category name string
+        subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+        discountrate: discount ? product.newPrice - ((product.newPrice * discount) / 100).toFixed(2) : product.newPrice // Calculate discounted price if discount exists
+      }));
+    }
+    else {
+      productsWithFullImageUrls = products.map(product => ({
+        ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+        productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
+        brandName: product.brandName.brandName, // Extract brand name string
+        categoryName: product.categoryName.categoryName, // Extract category name string
+        // subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+      }));
+    }
     // Prepare products with full image URLs and discount rates
-    const productsWithFullImageUrls = products.map(product => ({
-      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
-      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
-      brandName: product.brandName.brandName, // Extract brand name string
-      categoryName: product.categoryName.categoryName, // Extract category name string
-      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
-      // discountrate: product.discount ? product.price - ((product.price * product.discount) / 100) : product.price // Calculate discounted price if discount exists
-    }));
+
 
     // Register a custom Handlebars helper to group products into rows of 5
     handlebars.registerHelper('grouped', function (items, groupSize) {
@@ -893,19 +908,19 @@ exports.downloadPDFFromFrontend = async (req, res, next) => {
           </span>
       </div>
       `,
-       
+
       margin: {
-        top:'100px',
+        top: '100px',
         bottom: '40px' // Set a bottom margin to display the footer
       },
       pageRanges: '1-', // To generate all pages
     });
-      
+
 
     console.log(`PDF saved successfully to: ${filename}`);
 
     await browser.close();
-    
+
     res.status(200).json({ filename, isOk: true });
   }
   catch (err) {
@@ -932,7 +947,7 @@ exports.deleteFile = async (req, res) => {
         console.error(`Error removing file: ${err}`);
         return;
       }
-    
+
       console.log(`File ${filePath} has been successfully removed.`);
     });
     // Send success response
@@ -947,5 +962,502 @@ exports.deleteFile = async (req, res) => {
       message: 'Error deleting file',
       error: error.message,
     });
+  }
+};
+
+
+
+exports.listProductsDetailsFromFrontendByParams = async (req, res) => {
+  try {
+    let { match } = req.body; // Extracting match from request body
+    console.log("Match value:", match);
+
+    // Construct the query to find matches
+    const priceMatch = !isNaN(Number(match)) ? { $eq: Number(match) } : undefined;
+
+    let query = [
+      {
+        $match: { IsActive: true },
+      },
+      {
+        $lookup: {
+          from: "categorymasters",
+          localField: "categoryName",
+          foreignField: "_id",
+          as: "categoryName",
+        },
+      },
+      {
+        $unwind: {
+          path: "$categoryName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "subcategorymasters",
+          localField: "subCategoryName",
+          foreignField: "_id",
+          as: "subCategoryName",
+        },
+      },
+      {
+        $unwind: {
+          path: "$subCategoryName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "brandmasters",
+          localField: "brandName",
+          foreignField: "_id",
+          as: "brandName",
+        },
+      },
+      {
+        $unwind: {
+          path: "$brandName",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $match: {
+          $or: [
+            {
+              productName: { $regex: match, $options: "i" },
+            },
+            {
+              price: !isNaN(Number(match)) ? { $eq: Number(match) } : null,
+            },
+            {
+              newPrice: !isNaN(Number(match)) ? { $eq: Number(match) } : null,
+            },
+            {
+              "categoryName.categoryName": { $regex: match, $options: "i" },
+            },
+            {
+              "subCategoryName.subCategoryName": { $regex: match, $options: "i" },
+            },
+            {
+              "brandName.brandName": { $regex: match, $options: "i" },
+            },
+          ],
+        },
+      },
+    ];
+
+    const list = await ProductsDetails.aggregate(query);
+
+    res.json(list); // Return the matched list with all fields
+  } catch (error) {
+    console.error("Error in listProductsDetailsFromFrontendByParams:", error); // Log the error
+    res.status(500).send(error);
+  }
+};
+
+exports.sendQuotationMail = async (req, res) => {
+  try {
+    const { pathToDownload, email, phone, discount, date, name } = req.body; // Add second email address
+    const logo = `${process.env.REACT_APP_API_URL}/uploads/logo.png`
+    console.log(logo)
+    if (!email) {
+      throw new Error("Email details not found in notification");
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "Gmail", // or another email service
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false, // Allows self-signed certificates (only for development)
+      },
+    });
+
+    const filePath = path.join(`${__basedir}/uploads/Catalogue`, pathToDownload); // Construct the full file path
+
+    // Mail options for the first email
+    const mailOptionsFirst = {
+      to: email,
+      subject: "Your Brochure Invoice from Chanakya Corporate",
+      html: `<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <style>
+        body, table, td, a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+        }
+
+        img {
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        table {
+            border-collapse: collapse !important;
+        }
+
+        body {
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+
+        a[x-apple-data-detectors] {
+            color: inherit !important;
+            text-decoration: none !important;
+            font-size: inherit !important;
+            font-family: inherit !important;
+            font-weight: inherit !important;
+            line-height: inherit !important;
+        }
+
+        div[style*="margin: 16px 0;"] {
+            margin: 0 !important;
+        }
+    </style>
+
+
+</head>
+
+<body style="background-color: #f7f5fa; margin: 0 !important; padding: 0 !important;">
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td bgcolor="#426899" align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td align="center" valign="top" style="padding: 20px 10px 10px 10px;">
+                            <div style="display: block; font-family: Helvetica, Arial, sans-serif; color: #ffffff; font-size: 18px;" border="0"><a href="chanakyacorporate.com" style=" color: #ffffff;">chanakyacorporate.com</a></div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#426899" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
+                          <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td bgcolor="#ffffff" align="right" valign="top" style="padding: 0px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 400; line-height: inherit;">
+                           Date : ${date}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+
+                                <tr>
+                                    <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                        <h5 style="padding:0; margin:0; font-size:14px; font-weight:500;">Dear ${name},</h5>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                        <p style="line-height:24px;">
+                                            Thank You for your interest in chanakyacorporate.com website portal.  Attached is the Brochure for the inquiry you requested.
+                                        </p>
+                                    </td>
+                                </tr>
+                               
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td bgcolor="#ffffff" align="center" style="padding: 30px 30px 30px 30px; border-top:1px solid #dddddd;">
+                                        <table border="0" cellspacing="0" cellpadding="0">
+                                            <tr>
+                                                <td align="left" style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                                   
+                                                    <p style="margin:0 0 5px;">
+                                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat 390001, India
+ <br />Address : Chanakya The bag Studio, vadivadi, near race course circle, race course road,
+ Vadodara, Gujarat, India</p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Email : <a href="mailto:chanakyathebagstudio@gmail.com" style="color:#000; text-decoration:none;"> chanakyathebagstudio@gmail.com</a> | 
+                                                               
+                                                    </p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Contact : <a href="tel: 919974017727" style="color:#000; text-decoration:none;">+91 919974017727 </a> || <a href="tel: :919974017725 " style="color:#000; text-decoration:none;">+91 919974017725  </a>
+                                                    </p>
+
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#f4f4f4" align="left" style="padding: 30px 30px 30px 30px; color: #666666; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;">
+                            <p style="margin: 0; font-size:12px;">Design by "<a href="https://barodaweb.com/" target="_blank" style="color: #111111; font-weight: 500; "> Barodaweb The E-Catalogue Designer.</a>".</p>
+                        </td>
+                    </tr>
+                    </table>
+            </td>
+        </tr>
+    </table>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+</body>
+
+</html>
+`, // HTML content
+      attachments: [
+        {
+          filename: pathToDownload, // The file name for the attachment
+          path: filePath,           // The full file path
+        },
+      ],
+    };
+
+    // Mail options for the second email
+    const mailOptionsSecond = {
+      to: process.env.EMAIL_USER,
+      subject: `New Brochure Invoice for ${name} – Chanakya Corporate`,
+      html: `
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    
+    <style>
+        body, table, td, a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+        }
+
+        img {
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        table {
+            border-collapse: collapse !important;
+        }
+
+        body {
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+
+        a[x-apple-data-detectors] {
+            color: inherit !important;
+            text-decoration: none !important;
+            font-size: inherit !important;
+            font-family: inherit !important;
+            font-weight: inherit !important;
+            line-height: inherit !important;
+        }
+
+        div[style*="margin: 16px 0;"] {
+            margin: 0 !important;
+        }
+    </style>
+
+
+</head>
+
+<body style="background-color: #f7f5fa; margin: 0 !important; padding: 0 !important;">
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td bgcolor="#426899" align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td align="center" valign="top" style="padding: 20px 10px 10px 10px;">
+                            <div style="display: block; font-family: Helvetica, Arial, sans-serif; color: #ffffff; font-size: 18px;" border="0"><a href="chanakyacorporate.com" style=" color: #ffffff;">chanakyacorporate.com</a></div>
+                          </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#426899" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
+                          <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td bgcolor="#ffffff" align="right" valign="top" style="padding: 0px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 400; line-height: inherit;">
+                           Date : ${date}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                        <p>Please check below Inquiry Candidates details :</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align="left" valign="top" style="width:29%; padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">Name :</th>
+                                    <td align="left" valign="top" style="padding-left:5px;padding-right:30px;padding-bottom:10px;font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                       ${name}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align="left" valign="top" style="width:29%; padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">E-Mail :</th>
+                                    <td align="left" valign="top" style="padding-left:5px;padding-right:30px;padding-bottom:10px;font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                        ${email}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align="left" valign="top" style="width:29%; padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">Contact No. :</th>
+                                    <td align="left" valign="top" style="padding-left:5px;padding-right:30px;padding-bottom:10px;font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">${phone}</td>
+                                </tr>
+                                <tr>
+                                    <th align="left" valign="top" style="width:29%; padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">Subject :</th>
+                                    <td align="left" valign="top" style="padding-left:5px;padding-right:30px;padding-bottom:10px;font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">Brochure Inquiry</td>
+                                </tr>
+                                
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                 <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td bgcolor="#ffffff" align="center" style="padding: 30px 30px 30px 30px; border-top:1px solid #dddddd;">
+                                        <table border="0" cellspacing="0" cellpadding="0">
+                                            <tr>
+                                                <td align="left" style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                                   
+                                                    <p style="margin:0 0 5px;">
+                                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat 390001, India
+ <br />Address : Chanakya The bag Studio, vadivadi, near race course circle, race course road,
+ Vadodara, Gujarat, India</p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Email : <a href="mailto:chanakyathebagstudio@gmail.com" style="color:#000; text-decoration:none;"> chanakyathebagstudio@gmail.com</a> | 
+                                                               
+                                                    </p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Contact : <a href="tel: 919974017727" style="color:#000; text-decoration:none;">+91 919974017727 </a> || <a href="tel: :919974017725 " style="color:#000; text-decoration:none;">+91 919974017725  </a>
+                                                    </p>
+
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="480">
+                    <tr>
+                        <td bgcolor="#f4f4f4" align="left" style="padding: 30px 30px 30px 30px; color: #666666; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;">
+                            <p style="margin: 0; font-size:12px;">Design by "<a href="https://barodaweb.com/" target="_blank" style="color: #111111; font-weight: 500; "> Barodaweb The E-Catalogue Designer.</a>".</p>
+                        </td>
+                    </tr>
+                    </table>
+            </td>
+        </tr>
+    </table>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+</body>
+
+</html>
+`, // HTML content for the second email
+      attachments: [
+        {
+          filename: pathToDownload, // Same attachment file
+          path: filePath,
+        },
+      ],
+    };
+
+    // Send the first email
+    await transporter.sendMail(mailOptionsFirst);
+
+    // Send the second email
+    await transporter.sendMail(mailOptionsSecond);
+
+    res.status(200).json({ message: "Quotation emails sent successfully", isOk: true });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: "Failed to send emails" });
   }
 };

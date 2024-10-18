@@ -224,3 +224,69 @@ exports.getOrderHistoryById = async (req, res) => {
     }
   };
   
+ 
+  exports.getOrderHistoryByUser = async (req, res) => {
+    try {
+      const userId = req.params._id; // Assuming _id is passed in the route parameter
+  
+      const userData = await OrderHistory.aggregate([
+        {
+          $match: { user: new mongoose.Types.ObjectId(userId) } // Find orders for the user
+        },
+        {
+          $unwind: "$cart" // Unwind the cart array to work with individual cart items
+        },
+        {
+          $lookup: {
+            from: "productdetails",  // Reference to ProductDetails collection
+            localField: "cart.productName",  // cart.productName refers to the product's ID (or name)
+            foreignField: "_id",  // Match the product details by _id in ProductDetails
+            as: "productDetails"  // Output array field for product details
+          }
+        },
+        {
+          $unwind: {
+            path: "$productDetails", // Unwind the product details array
+            preserveNullAndEmptyArrays: true // Preserves empty array if no matching product is found
+          }
+        },
+        {
+          $group: {
+            _id: "$_id",  // Group by OrderHistory ID (which represents each order)
+            user: { $first: "$user" },  // Include the user field
+            orderNo: { $first: "$orderNo" },  // Include order number
+            date: { $first: "$date" },  // Include order date
+            remark: { $first: "$remark" },  // Include order remarks
+            createdAt: { $first: "$createdAt" },  // Include the order creation date
+            cart: {
+              $push: {
+                productDetails: "$productDetails",  // Include the populated product details
+                quantity: "$cart.quantity"  // Include the product quantity in the order
+              }
+            }
+          }
+        }
+      ]);
+  
+      // If userData is empty, return user details with a message saying no orders found
+      if (userData.length === 0) {
+        const basicUserDetails = await UserMaster.findOne(
+          { _id: userId },
+          { user: 1, orderNo: 1, date: 1, remark: 1, createdAt: 1 } // Fetch basic user details
+        );
+        
+        if (!basicUserDetails) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        
+        return res.json({ message: "Order history not found", user: basicUserDetails });
+      }
+  
+      // Send the populated user data
+      res.json(userData); // Return all order records for the user
+    } catch (error) {
+      console.error("Error fetching order history:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  };
+  

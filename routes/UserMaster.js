@@ -18,56 +18,40 @@ const {
   otpSignInRequest,
   updateUserCart,
   removeCartItem,
-  updateUserMasterDetailsOrder
+  updateUserMasterDetailsOrder,
+  otpForgetPasswordRequest,
+  checkOTP
 } = require("../controllers/UserMaster/UserMaster");
 
 
 
 
-router.post(
-  "/auth/create/UserMasterDetails",
-  catchAsync(createUserMasterDetails)
+router.post("/auth/create/UserMasterDetails",catchAsync(createUserMasterDetails)
 );
 
-router.get(
-  "/auth/list/UserMasterDetails",
-  catchAsync(listUserMasterDetails)
+router.get("/auth/list/UserMasterDetails",catchAsync(listUserMasterDetails)
 );
 
-router.post(
-  "/auth/listbyparams/UserMasterDetails",
-  catchAsync(listUserMasterDetailsByParams)
+router.post("/auth/listbyparams/UserMasterDetails",catchAsync(listUserMasterDetailsByParams)
 );
 
-router.get(
-  "/auth/get/UserMasterDetails/:Email",
-  catchAsync(getUserMasterDetails)
+router.get( "/auth/get/UserMasterDetails/:Email", catchAsync(getUserMasterDetails)
 );
 
-router.get(
-  "/auth/get/UserMasterDetail/:_id",
-  catchAsync(getUserMasterDetail)
+router.get("/auth/get/UserMasterDetail/:_id",catchAsync(getUserMasterDetail)
 );
 
-router.get(
-  "/auth/get/test/UserMasterDetails/:_id",
-  catchAsync(getExamUserMasterDetails)
+router.get("/auth/get/test/UserMasterDetails/:_id",catchAsync(getExamUserMasterDetails)
 );
 
-router.put(
-  "/auth/update/UserMasterDetails/:_id",
-  catchAsync(updateUserMasterDetails)
+router.put("/auth/update/UserMasterDetails/:_id",catchAsync(updateUserMasterDetails)
 );
 
-router.delete(
-  "/auth/remove/UserMasterDetails/:_id",
-  catchAsync(removeUserMasterDetails)
+router.delete("/auth/remove/UserMasterDetails/:_id", catchAsync(removeUserMasterDetails)
 );
 
 // APPLICATION
-router.get(
-  "/auth/list/UserMasterbycategory/:categoryId",
-  catchAsync(listUserMasterByCategory)
+router.get("/auth/list/UserMasterbycategory/:categoryId",catchAsync(listUserMasterByCategory)
 );
 
 // router.post("/auth/list/UserMasterbyid/:productId", catchAsync(getProductByID));
@@ -77,6 +61,10 @@ router.get(
 router.post("/UserMasterLogin", catchAsync(loginUser));
 
 router.post("/auth/user/otp-signin-request", catchAsync(otpSignInRequest));
+
+router.post("/auth/user/auth/check-otp", catchAsync(checkOTP));
+
+router.post("/auth/user/otp-forgetpassword-request", catchAsync(otpForgetPasswordRequest));
 
 router.post("/auth/update/user-cart", catchAsync(updateUserCart))
 

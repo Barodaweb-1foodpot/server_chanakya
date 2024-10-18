@@ -210,6 +210,11 @@ exports.getGroupedSubCategory = async (req, res) => {
   try {
     const pipeline = [
       {
+        $match: {
+          IsActive: true, // Ensure only active subcategories are included
+        },
+      },
+      {
         $group: {
           _id: "$categoryName", // Group by categoryName
           count: { $sum: 1 }, // Count of documents in each group
@@ -225,6 +230,14 @@ exports.getGroupedSubCategory = async (req, res) => {
         },
       },
       {
+        $unwind: "$categoryDetails", // Unwind to access individual category details
+      },
+      {
+        $match: {
+          "categoryDetails.IsActive": true, // Ensure only active categories are included
+        },
+      },
+      {
         $lookup: {
           from: "subcategorymasters", // Name of the subcategory master collection
           localField: "subCategories", // The array of subCategoryIds from the previous step
@@ -234,15 +247,21 @@ exports.getGroupedSubCategory = async (req, res) => {
       },
       {
         $project: {
-          categoryDetails: { $arrayElemAt: ["$categoryDetails", 0] }, // Only get the first matched category
-          subCategoryDetails: 1, // Include all subcategory details
+          categoryDetails: 1, // Include all category details
+          subCategoryDetails: {
+            $filter: {
+              input: "$subCategoryDetails", // Filter subcategory details
+              as: "subCategory",
+              cond: { $eq: ["$$subCategory.IsActive", true] }, // Only include active subcategories
+            },
+          },
           count: 1, // Include the count field
         },
       },
     ];
-
-    const groupedData = await SubCategory.aggregate(pipeline); // Replace YourModel with your actual model name
-
+  
+    const groupedData = await SubCategory.aggregate(pipeline);
+  
     res.status(200).json({
       success: true,
       data: groupedData,
@@ -254,6 +273,7 @@ exports.getGroupedSubCategory = async (req, res) => {
       error: err.message,
     });
   }
+  
 };
 
 async function compressImage(file, uploadDir) {

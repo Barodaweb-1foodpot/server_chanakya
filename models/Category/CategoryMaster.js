@@ -15,6 +15,9 @@ const CategoryMasterSchema = new mongoose.Schema(
     logo: {
       type: String,
     },
+    logoBackground: {
+      type: String,
+    },
     IsActive: {
       type: Boolean,
     },
