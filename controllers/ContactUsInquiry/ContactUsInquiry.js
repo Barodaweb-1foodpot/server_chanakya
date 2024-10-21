@@ -39,7 +39,7 @@ exports.createContactUsInquiry = async (req, res) => {
         return res.status(200).json({
             isOk: true,
             Category,
-            message: "Inquiry created successfully",
+            message: "Inquiry sent successfully",
         });
     } catch (err) {
         console.log(err);

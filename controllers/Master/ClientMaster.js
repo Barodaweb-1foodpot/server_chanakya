@@ -60,11 +60,11 @@ exports.listClientMaster = async (req, res) => {
 
 exports.listClientMasterByParams = async (req, res) => {
   try {
-    let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
+    let { skip, per_page, sorton, sortdir, match, IsActive } = req.body;
 
     let query = [
       {
-        $match: { isActive: isActive },
+        $match: { IsActive: IsActive },
       },
 
       {

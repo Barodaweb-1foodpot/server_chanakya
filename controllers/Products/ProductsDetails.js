@@ -505,7 +505,8 @@ exports.getFilteredProducts = async (req, res) => {
               productsubsmasterId: "$productsubsmasterId",
               categoryName: "$categoryName",
               subCategoryName: "$subCategoryName",
-              brandName: "$brandName"
+              brandName: "$brandName",
+              SKU: "$SKU"
             }
           },
         },
