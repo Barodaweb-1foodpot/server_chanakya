@@ -4,7 +4,7 @@ const OrderHistory = new mongoose.Schema(
   {
     orderNo:
     {
-        type:Number,
+        type:String,
 
     },
    
@@ -16,7 +16,7 @@ const OrderHistory = new mongoose.Schema(
       type: String,
       default:''
     },
-    date: {
+    estimatedDate: {
       type: Date,
       default:''
     },

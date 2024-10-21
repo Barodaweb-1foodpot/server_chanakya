@@ -689,7 +689,7 @@ exports.updateUserMasterDetailsOrder = async (req, res) => {
       IsActive: true,
       orderNo: newOrderNo ,
       remark:fieldvalues.remark,
-      date:fieldvalues.date,
+      estimatedDate:fieldvalues.estimatedDate,
     });
 
     // Step 4: Update the UserMaster with the new OrderHistory _id
