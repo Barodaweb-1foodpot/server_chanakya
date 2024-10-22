@@ -64,7 +64,7 @@ exports.getCatalogueInquiry = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: 'subcategorymaster', // Assuming this is the collection for sub-categories
+                    from: 'subcategorymasters', // Assuming this is the collection for sub-categories
                     localField: 'subCategoryName',
                     foreignField: '_id',
                     as: 'subCategoryNameDetails'

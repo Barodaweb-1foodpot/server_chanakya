@@ -618,6 +618,7 @@ exports.updateUserCart = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" ,isOk:false});
     }
+    console.log(user)
 
     // Check if the product already exists in the cart
     const existingCartItem = user.cart.find(
@@ -680,7 +681,9 @@ exports.updateUserMasterDetailsOrder = async (req, res) => {
 
     // Step 2: Find the last orderNo from OrderHistory
     const lastOrder = await OrderHistory.findOne({}).sort({ orderNo: -1 }).exec();
-    const newOrderNo = lastOrder ? lastOrder.orderNo + 1 : 1;  // Increment if exists, else start at 1
+
+    // Ensure orderNo is a number before incrementing
+    const newOrderNo = lastOrder ? parseInt(lastOrder.orderNo, 10) + 1 : 1;
 
     // Step 3: Create a new order in OrderHistory with the new orderNo
     const newOrder = await OrderHistory.create({

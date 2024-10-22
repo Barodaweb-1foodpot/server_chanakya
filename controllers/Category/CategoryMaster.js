@@ -212,9 +212,17 @@ exports.updateCategoryMaster = async (req, res) => {
 
 exports.removeCategoryMaster = async (req, res) => {
   try {
-    const del = await CategoryMaster.findOneAndRemove({
-      _id: req.params._id,
-    });
+    // const updatedProduct = await ProductsDetails.findByIdAndUpdate(
+    //   req.params._id,  // Find the product by ID
+    //   { IsActive: false },  // Set IsActive to false instead of deleting the product
+    //   { new: true }  // Return the updated document
+    // );
+
+    const del = await CategoryMaster.findByIdAndUpdate(
+      req.params._id,  // Find the product by ID
+      { IsActive: false },  // Set IsActive to false instead of deleting the product
+      { new: true }  // Return the updated document
+    );
     res.json(del);
   } catch (err) {
     res.status(400).send(err);
