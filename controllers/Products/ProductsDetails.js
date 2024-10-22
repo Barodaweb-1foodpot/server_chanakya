@@ -266,14 +266,22 @@ exports.updateProductsDetails = async (req, res) => {
 
 exports.removeProductsDetails = async (req, res) => {
   try {
-    const del = await ProductsDetails.findOneAndRemove({
-      _id: req.params._id,
-    });
-    res.json(del);
+    const updatedProduct = await ProductsDetails.findByIdAndUpdate(
+      req.params._id,  // Find the product by ID
+      { IsActive: false },  // Set IsActive to false instead of deleting the product
+      { new: true }  // Return the updated document
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json({ message: 'Product successfully deactivated', product: updatedProduct });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.CategoryProductList = async (req, res) => {
   try {
@@ -362,6 +370,9 @@ exports.getUniquefilters = async (req, res) => {
   try {
     const uniqueValues = await ProductsDetails.aggregate([
       {
+        $match: { IsActive: true } // Only include products where IsActive is true
+      },
+      {
         $group: {
           _id: null,
           uniqueCategoryNames: { $addToSet: "$categoryName" }, // Collect unique category ids
@@ -432,12 +443,16 @@ exports.getFilteredProducts = async (req, res) => {
     if (activeSubCategoriesIndices && activeSubCategoriesIndices.length > 0) {
       query.subCategoryName = { $in: activeSubCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
+    
 
     // Filter by product IDs or SKU (assuming value is product ID or SKU)
 
 
     // Query for fetching the product details
     const products = await ProductsDetails.aggregate([
+      {
+        $match: { IsActive: true } // Only include products where IsActive is true
+      },
       {
         $match: {
           ...query, // Match the filtered criteria for brand, category, and subcategory
@@ -496,7 +511,7 @@ exports.getFilteredProducts = async (req, res) => {
           uniqueBrandDetails: { $addToSet: "$brandName" },   // Collect unique brand details
           products: {
             $push: {
-              productId: "$_id",
+              _id: "$_id",
               productName: "$productName",
               productImage: "$productImage",
               price: "$price",
@@ -799,7 +814,7 @@ exports.downloadPDFFromFrontend = async (req, res, next) => {
     // console.log(queryConditions);
 
     // Use the $or operator to combine all filter conditions
-    const products = await ProductsDetails.find({ _id: AllProduct })
+    const products = await ProductsDetails.find({ _id: AllProduct , IsActive:true })
       .populate('brandName')
       .populate('categoryName')
       .populate('subCategoryName');
