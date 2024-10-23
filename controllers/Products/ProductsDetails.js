@@ -74,7 +74,7 @@ exports.createProductsDetails = async (req, res) => {
 
 exports.listProductsDetails = async (req, res) => {
   try {
-    const list = await ProductsDetails.find({ isAvailable: true, IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
+    const list = await ProductsDetails.find({IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
