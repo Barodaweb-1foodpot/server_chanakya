@@ -220,12 +220,14 @@ exports.listOrderHistoryByParams = async (req, res) => {
       ].concat(query);
     } else {
       let sort = {};
-      sort["createdAt"] = -1;
+      sort["createdAt"] = -1;  // Correctly set the key 'createdAt' to -1 for descending order
+      
       query = [
         {
           $sort: sort,
         },
       ].concat(query);
+    
     }
     // Execute the query
     const list = await OrderHistory.aggregate(query);
