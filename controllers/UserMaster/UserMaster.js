@@ -144,7 +144,8 @@ exports.getUserMasterDetails = async (req, res) => {
           lastname: 1,
           companyEmail: 1,
           companyContactNo: 1,
-          companyAddress: 1,}
+          companyAddress: 1,
+        Password:1}
       );
       return res.json({ ...basicUserDetails._doc, cart: [] });
     }
@@ -327,7 +328,7 @@ exports.updateUserMasterDetails = async (req, res) => {
 
       { new: true }
     );
-    res.json(update);
+    res.json({update, isOk:true});
   } catch (err) {
     res.status(400).send(err);
   }
@@ -432,8 +433,172 @@ const sendLoginOTPEmail = async (email, otp) => {
     
     const mailOptions = {
       to: email,
-      subject: "Sign In Verification code for Chanakya",
-      html: `This is your ${otp}`, // Use html property to render HTML content
+      subject: "Your OTP for Account Sign Up – Chanakya Corporate",
+      html: `<html lang="en">
+
+      <head>
+      
+          <meta charset="UTF-8">
+          <style>
+              body, table, td, a {
+                  -webkit-text-size-adjust: 100%;
+                  -ms-text-size-adjust: 100%;
+              }
+      
+              table, td {
+                  mso-table-lspace: 0pt;
+                  mso-table-rspace: 0pt;
+              }
+      
+              img {
+                  -ms-interpolation-mode: bicubic;
+              }
+      
+              img {
+                  border: 0;
+                  height: auto;
+                  line-height: 100%;
+                  outline: none;
+                  text-decoration: none;
+              }
+      
+              table {
+                  border-collapse: collapse !important;
+              }
+      
+              body {
+                  height: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 100% !important;
+              }
+      
+              a[x-apple-data-detectors] {
+                  color: inherit !important;
+                  text-decoration: none !important;
+                  font-size: inherit !important;
+                  font-family: inherit !important;
+                  font-weight: inherit !important;
+                  line-height: inherit !important;
+              }
+      
+              div[style*="margin: 16px 0;"] {
+                  margin: 0 !important;
+              }
+          </style>
+      
+      
+      </head>
+      
+      <body style="background-color: #f7f5fa; margin: 0 !important; padding: 0 !important;">
+      
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                  <td bgcolor="#426899" align="center">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td align="center" valign="top" style="padding: 20px 10px 10px 10px;">
+                                  <div style="display: block; font-family: Helvetica, Arial, sans-serif; color: #ffffff; font-size: 18px;" border="0"><a href="chanakyacorporate.com" style=" color: #ffffff;">chanakyacorporate.com</a></div>
+                              </td>
+                          </tr>
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#426899" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
+                                <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                              </td>
+                          </tr>
+      
+                           
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#ffffff" align="left">
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      
+                                      <tr>
+                                          <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                              <h5 style="padding:0; margin:0; font-size:14px; font-weight:500;">Welcome To Chanakya Corporate, We're excited to have you onboard.</h5>
+                                          </td>
+                                      </tr>
+                                      <tr>
+                                          <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                              <p style="line-height:24px;">
+                                                 Your Otp is : <span style="font-weight:bold"> ${otp}</span>
+                                              </p>
+                                              <p style="line-height:24px;">
+                                               Please keep it confidential and do not share it with anyone.
+
+                                                If you did not initiate this sign-up, please contact us immediately.
+                                                </p>
+
+                                          </td>
+                                      </tr>
+                                     
+                                  </table>
+                              </td>
+                          </tr>
+                          <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td bgcolor="#ffffff" align="center" style="padding: 30px 30px 30px 30px; border-top:1px solid #dddddd;">
+                                        <table border="0" cellspacing="0" cellpadding="0">
+                                            <tr>
+                                                <td align="left" style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                                   
+                                                    <p style="margin:0 0 5px;">
+                                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat 390001, India
+ <br />Address : Chanakya The bag Studio, vadivadi, near race course circle, race course road,
+ Vadodara, Gujarat, India</p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Email : <a href="mailto:chanakyathebagstudio@gmail.com" style="color:#000; text-decoration:none;"> chanakyathebagstudio@gmail.com</a> | 
+                                                               
+                                                    </p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Contact : <a href="tel: 919974017727" style="color:#000; text-decoration:none;">+91 919974017727 </a> || <a href="tel: :919974017725 " style="color:#000; text-decoration:none;">+91 919974017725  </a>
+                                                    </p>
+
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                           
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#f4f4f4" align="left" style="padding: 30px 30px 30px 30px; color: #666666; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;">
+                                  <p style="margin: 0; font-size:12px;">Design by "<a href="https://barodaweb.com/" target="_blank" style="color: #111111; font-weight: 500; "> Barodaweb The E-Catalogue Designer.</a>".</p>
+                              </td>
+                          </tr>
+                          </table>
+                  </td>
+              </tr>
+          </table>
+      
+          <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+      </body>
+      
+      </html>
+      `,
     };
     
     return await transporter.sendMail(mailOptions);
@@ -453,6 +618,7 @@ exports.updateUserCart = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" ,isOk:false});
     }
+    console.log(user)
 
     // Check if the product already exists in the cart
     const existingCartItem = user.cart.find(
@@ -515,7 +681,9 @@ exports.updateUserMasterDetailsOrder = async (req, res) => {
 
     // Step 2: Find the last orderNo from OrderHistory
     const lastOrder = await OrderHistory.findOne({}).sort({ orderNo: -1 }).exec();
-    const newOrderNo = lastOrder ? lastOrder.orderNo + 1 : 1;  // Increment if exists, else start at 1
+
+    // Ensure orderNo is a number before incrementing
+    const newOrderNo = lastOrder ? parseInt(lastOrder.orderNo, 10) + 1 : 1;
 
     // Step 3: Create a new order in OrderHistory with the new orderNo
     const newOrder = await OrderHistory.create({
@@ -524,7 +692,7 @@ exports.updateUserMasterDetailsOrder = async (req, res) => {
       IsActive: true,
       orderNo: newOrderNo ,
       remark:fieldvalues.remark,
-      date:fieldvalues.date,
+      estimatedDate:fieldvalues.estimatedDate,
     });
 
     // Step 4: Update the UserMaster with the new OrderHistory _id
@@ -538,3 +706,256 @@ exports.updateUserMasterDetailsOrder = async (req, res) => {
     res.status(400).send(err);
   }
 };
+
+
+exports.otpForgetPasswordRequest = async (req, res) => {
+  const { Email } = req.body;
+
+  
+    try{
+      const check = await UserMaster.findOne({Email:Email}).exec()
+      if(!check)
+      {
+        return res.status(200).json({isOk:false, message:"This Email Is Not Registered"})
+      }
+      const otp = generateOTP();
+    
+    await sendForgetPasswordOTPEmail(Email, otp);
+
+    await UserMaster.updateOne({ Email: Email }, { $set: { otp: otp } });
+
+
+
+    res.status(200).json({
+      isOk: true,
+      message: "OTP sent to your email",
+      status: 200,
+   
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      isOk: false,
+      message: "An error occurred while sending OTP",
+      status: 500,
+    });
+  }
+};
+
+
+const sendForgetPasswordOTPEmail = async (email, otp) => {
+ 
+  try {
+    
+    if (!email) {
+      throw new Error("Email details not found in notification");
+    }
+    const transporter = nodemailer.createTransport({
+      service: "Gmail", // or another email service
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false, // Allows self-signed certificates (only for development)
+      },
+    });
+    
+    const mailOptions = {
+      to: email,
+      subject: "Reset Your Password for Chanakya Corporate ",
+      html: `<html lang="en">
+
+      <head>
+      
+          <meta charset="UTF-8">
+          <style>
+              body, table, td, a {
+                  -webkit-text-size-adjust: 100%;
+                  -ms-text-size-adjust: 100%;
+              }
+      
+              table, td {
+                  mso-table-lspace: 0pt;
+                  mso-table-rspace: 0pt;
+              }
+      
+              img {
+                  -ms-interpolation-mode: bicubic;
+              }
+      
+              img {
+                  border: 0;
+                  height: auto;
+                  line-height: 100%;
+                  outline: none;
+                  text-decoration: none;
+              }
+      
+              table {
+                  border-collapse: collapse !important;
+              }
+      
+              body {
+                  height: 100% !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 100% !important;
+              }
+      
+              a[x-apple-data-detectors] {
+                  color: inherit !important;
+                  text-decoration: none !important;
+                  font-size: inherit !important;
+                  font-family: inherit !important;
+                  font-weight: inherit !important;
+                  line-height: inherit !important;
+              }
+      
+              div[style*="margin: 16px 0;"] {
+                  margin: 0 !important;
+              }
+          </style>
+      
+      
+      </head>
+      
+      <body style="background-color: #f7f5fa; margin: 0 !important; padding: 0 !important;">
+      
+          <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                  <td bgcolor="#426899" align="center">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td align="center" valign="top" style="padding: 20px 10px 10px 10px;">
+                                  <div style="display: block; font-family: Helvetica, Arial, sans-serif; color: #ffffff; font-size: 18px;" border="0"><a href="chanakyacorporate.com" style=" color: #ffffff;">chanakyacorporate.com</a></div>
+                              </td>
+                          </tr>
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#426899" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
+                                <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                              </td>
+                          </tr>
+      
+                           
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#ffffff" align="left">
+                                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      
+                                      <tr>
+                                          <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                              <h5 style="padding:0; margin:0; font-size:14px; font-weight:500;">We received a request to reset your password for your Chanakya Corporate account. If this was you, please the OTP below to reset your password.</h5>
+                                          </td>
+                                      </tr>
+                                      <tr>
+                                          <td colspan="2" style="padding-left:30px;padding-right:15px;padding-bottom:10px; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: inherit;">
+                                              <p style="line-height:24px;">
+                                                 Your Otp is : <span style="font-weight:bold"> ${otp}</span>
+                                              </p>
+                                              <p style="line-height:24px;">
+                                               Please keep it confidential and do not share it with anyone.
+
+                                               
+                                                </p>
+
+                                          </td>
+                                      </tr>
+                                     
+                                  </table>
+                              </td>
+                          </tr>
+                          <tr>
+                        <td bgcolor="#ffffff" align="left">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td bgcolor="#ffffff" align="center" style="padding: 30px 30px 30px 30px; border-top:1px solid #dddddd;">
+                                        <table border="0" cellspacing="0" cellpadding="0">
+                                            <tr>
+                                                <td align="left" style="font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 25px;">
+                                                   
+                                                    <p style="margin:0 0 5px;">
+                                                         Address : Opp. Pratap Talkies, opp. Sursagar Lake (East), Vadodara, Gujarat 390001, India
+ <br />Address : Chanakya The bag Studio, vadivadi, near race course circle, race course road,
+ Vadodara, Gujarat, India</p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Email : <a href="mailto:chanakyathebagstudio@gmail.com" style="color:#000; text-decoration:none;"> chanakyathebagstudio@gmail.com</a> | 
+                                                               
+                                                    </p>
+
+                                                    <p style="margin:0 0 5px;">
+                                                        Contact : <a href="tel: 919974017727" style="color:#000; text-decoration:none;">+91 919974017727 </a> || <a href="tel: :919974017725 " style="color:#000; text-decoration:none;">+91 919974017725  </a>
+                                                    </p>
+
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                           
+                      </table>
+                  </td>
+              </tr>
+              <tr>
+                  <td bgcolor="#f4f4f4" align="center" style="padding: 0px 10px 0px 10px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="480">
+                          <tr>
+                              <td bgcolor="#f4f4f4" align="left" style="padding: 30px 30px 30px 30px; color: #666666; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;">
+                                  <p style="margin: 0; font-size:12px;">Design by "<a href="https://barodaweb.com/" target="_blank" style="color: #111111; font-weight: 500; "> Barodaweb The E-Catalogue Designer.</a>".</p>
+                              </td>
+                          </tr>
+                          </table>
+                  </td>
+              </tr>
+          </table>
+      
+          <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+      </body>
+      
+      </html>
+      `,
+    };
+    
+    return await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Error sending OTP email:", error);
+    throw error;
+  }
+};
+
+exports.checkOTP=async(req, res)=>{
+  try{
+    const {email, otp} = req.body
+    const data = await UserMaster.findOne({Email:email , otp:otp }).exec()
+    if(data)
+    {
+      return res.status(200).json({isOk:true, message : 'OTP Match successfully' ,data})
+    }
+    else{
+      return res.status(200).json({isOk:false, message:"OTP or Email does not Match"})
+    }
+  }
+  catch(error)
+  {
+    return res.status(200).json({
+      isOk: false,
+      message: "An error occurred while checking OTP",
+      status: 500,
+    });
+  }
+}

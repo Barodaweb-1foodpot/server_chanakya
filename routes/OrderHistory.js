@@ -7,7 +7,8 @@ const catchAsync = require("../utils/catchAsync");
 const {
     createOrderHistory,
     getOrderHistoryById,
-    listOrderHistoryByParams
+    listOrderHistoryByParams,
+    getOrderHistoryByUser
 } = require("../controllers/orderHistory/OrderHistory");
 const multer = require("multer");
 const path= require('path')
@@ -17,6 +18,9 @@ router.post('/auth/create/order-history', catchAsync(createOrderHistory));
 
 router.get('/auth/get/order-history/:_id', catchAsync(getOrderHistoryById) )
 
-router.post("/auth/list-by-params/order-history-details",   catchAsync(listOrderHistoryByParams)
-  );
+router.post("/auth/list-by-params/order-history-details",   catchAsync(listOrderHistoryByParams));
+
+router.get('/auth/get/order-history-user/:_id', catchAsync(getOrderHistoryByUser) )
+
+
 module.exports = router;

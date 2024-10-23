@@ -197,9 +197,11 @@ exports.updateSubCategoryMaster = async (req, res) => {
 
 exports.removeSubCategoryMaster = async (req, res) => {
   try {
-    const del = await SubCategoryMaster.findOneAndRemove({
-      _id: req.params._id,
-    });
+    const del = await SubCategoryMaster.findByIdAndUpdate(
+      req.params._id,  // Find the product by ID
+      { IsActive: false },  // Set IsActive to false instead of deleting the product
+      { new: true }  // Return the updated document
+    );
     res.json(del);
   } catch (err) {
     res.status(400).send(err);
@@ -209,6 +211,11 @@ exports.removeSubCategoryMaster = async (req, res) => {
 exports.getGroupedSubCategory = async (req, res) => {
   try {
     const pipeline = [
+      {
+        $match: {
+          IsActive: true, // Ensure only active subcategories are included
+        },
+      },
       {
         $group: {
           _id: "$categoryName", // Group by categoryName
@@ -225,6 +232,14 @@ exports.getGroupedSubCategory = async (req, res) => {
         },
       },
       {
+        $unwind: "$categoryDetails", // Unwind to access individual category details
+      },
+      {
+        $match: {
+          "categoryDetails.IsActive": true, // Ensure only active categories are included
+        },
+      },
+      {
         $lookup: {
           from: "subcategorymasters", // Name of the subcategory master collection
           localField: "subCategories", // The array of subCategoryIds from the previous step
@@ -234,15 +249,21 @@ exports.getGroupedSubCategory = async (req, res) => {
       },
       {
         $project: {
-          categoryDetails: { $arrayElemAt: ["$categoryDetails", 0] }, // Only get the first matched category
-          subCategoryDetails: 1, // Include all subcategory details
+          categoryDetails: 1, // Include all category details
+          subCategoryDetails: {
+            $filter: {
+              input: "$subCategoryDetails", // Filter subcategory details
+              as: "subCategory",
+              cond: { $eq: ["$$subCategory.IsActive", true] }, // Only include active subcategories
+            },
+          },
           count: 1, // Include the count field
         },
       },
     ];
-
-    const groupedData = await SubCategory.aggregate(pipeline); // Replace YourModel with your actual model name
-
+  
+    const groupedData = await SubCategory.aggregate(pipeline);
+  
     res.status(200).json({
       success: true,
       data: groupedData,
@@ -254,6 +275,7 @@ exports.getGroupedSubCategory = async (req, res) => {
       error: err.message,
     });
   }
+  
 };
 
 async function compressImage(file, uploadDir) {

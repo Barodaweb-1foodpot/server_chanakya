@@ -60,11 +60,11 @@ exports.listClientMaster = async (req, res) => {
 
 exports.listClientMasterByParams = async (req, res) => {
   try {
-    let { skip, per_page, sorton, sortdir, match, isActive } = req.body;
+    let { skip, per_page, sorton, sortdir, match, IsActive } = req.body;
 
     let query = [
       {
-        $match: { isActive: isActive },
+        $match: { IsActive: IsActive },
       },
 
       {
@@ -167,9 +167,10 @@ exports.updateClientMaster = async (req, res) => {
 
 exports.removeClientMaster = async (req, res) => {
   try {
-    const del = await ClientMaster.findOneAndRemove({
-      _id: req.params._id,
-    });
+    const del = await ClientMaster.findByIdAndUpdate(req.params._id,  // Find the product by ID
+      { IsActive: false },  // Set IsActive to false instead of deleting the product
+      { new: true }  // Return the updated document
+      );
     res.json(del);
   } catch (err) {
     res.status(400).send(err);

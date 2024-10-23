@@ -278,9 +278,10 @@ exports.updateBrandMaster = async (req, res) => {
 
 exports.removeBrandMaster = async (req, res) => {
   try {
-    const del = await BrandMaster.findOneAndRemove({
-      _id: req.params._id,
-    });
+    const del = await BrandMaster.findByIdAndUpdate(req.params._id,  // Find the product by ID
+      { IsActive: false },  // Set IsActive to false instead of deleting the product
+      { new: true }  // Return the updated document
+      );
     res.json(del);
   } catch (err) {
     res.status(400).send(err);

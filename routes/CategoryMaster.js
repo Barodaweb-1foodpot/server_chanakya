@@ -36,7 +36,7 @@ const multerStorage = multer.diskStorage({
 });
 const upload = multer({ storage: multerStorage });
 
-router.post("/auth/create/CategoryMaster",upload.single("logo"), catchAsync(createCategoryMaster));
+router.post("/auth/create/CategoryMaster",upload.any(), catchAsync(createCategoryMaster));
 
 router.get("/auth/list/CategoryMaster", catchAsync(listCategoryMaster));
 
@@ -44,7 +44,7 @@ router.post("/auth/listByparams/CategoryMaster", catchAsync(listCategoryMasterBy
 
 router.get("/auth/get/CategoryMaster/:_id", catchAsync(getCategoryMaster));
 
-router.put("/auth/update/CategoryMaster/:_id",upload.single("logo"), catchAsync(updateCategoryMaster));
+router.put("/auth/update/CategoryMaster/:_id",upload.any(), catchAsync(updateCategoryMaster));
 
 router.delete("/auth/remove/CategoryMaster/:_id", catchAsync(removeCategoryMaster));
 
