@@ -242,7 +242,7 @@ exports.updateProductsDetails = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    console.log("req.file",req.file)
+    // console.log("req.file", req.file)
     let productImage = req.file
       ? await compressImage(req.file, uploadDir)
       : null;
@@ -257,7 +257,7 @@ exports.updateProductsDetails = async (req, res) => {
 
       { new: true }
     );
-    res.json(update);
+    res.json({isOk:true, update , message:"Record Updated Successfully"});
   } catch (err) {
     res.status(400).send(err);
   }
