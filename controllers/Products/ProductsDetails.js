@@ -75,7 +75,7 @@ exports.createProductsDetails = async (req, res) => {
 exports.listProductsDetails = async (req, res) => {
   try {
     const list = await ProductsDetails.find({IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
-    res.json(list);
+    return res.json(list);
   } catch (error) {
     return res.status(400).send(error);
   }
@@ -258,9 +258,9 @@ exports.updateProductsDetails = async (req, res) => {
 
       { new: true }
     );
-    res.json({isOk:true, update , message:"Record Updated Successfully"});
+    return res.json({isOk:true, update , message:"Record Updated Successfully"});
   } catch (err) {
-    res.status(400).send(err);
+   return res.status(400).send(err);
   }
 };
 
@@ -421,11 +421,13 @@ exports.getUniquefilters = async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching unique product details." });
   }
 };
+
 const mongoose = require('mongoose');
 exports.getFilteredProducts = async (req, res) => {
   try {
     const { activeBrandIndices, activeCategoriesIndices, activeSubCategoriesIndices, value } = req.body;
-    console.log(req.body)
+    console.log(req.body);
+
     // Build the query object
     const query = {};
 
@@ -443,10 +445,6 @@ exports.getFilteredProducts = async (req, res) => {
     if (activeSubCategoriesIndices && activeSubCategoriesIndices.length > 0) {
       query.subCategoryName = { $in: activeSubCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
-    
-
-    // Filter by product IDs or SKU (assuming value is product ID or SKU)
-
 
     // Query for fetching the product details
     const products = await ProductsDetails.aggregate([
@@ -509,6 +507,8 @@ exports.getFilteredProducts = async (req, res) => {
           _id: null, // Grouping all matched products
           uniqueBrandNames: { $addToSet: "$brandName._id" }, // Collect unique brand IDs
           uniqueBrandDetails: { $addToSet: "$brandName" },   // Collect unique brand details
+          minPrice: { $min: "$price" }, // Get the minimum price
+          maxPrice: { $max: "$price" }, // Get the maximum price
           products: {
             $push: {
               _id: "$_id",
@@ -521,7 +521,8 @@ exports.getFilteredProducts = async (req, res) => {
               categoryName: "$categoryName",
               subCategoryName: "$subCategoryName",
               brandName: "$brandName",
-              SKU: "$SKU"
+              SKU: "$SKU",
+              isAvailable:"$isAvailable"
             }
           },
         },
@@ -532,11 +533,10 @@ exports.getFilteredProducts = async (req, res) => {
           uniqueBrandNames: 1, // Return the unique brand IDs
           uniqueBrandDetails: 1, // Return the unique brand details
           products: 1, // Return the product details
+          uniquePrice: ["$minPrice", "$maxPrice"] // Include uniquePrice as [minPrice, maxPrice]
         },
       }
     ]);
-
-
 
     res.status(200).json({ success: true, products });
   } catch (error) {
@@ -544,6 +544,7 @@ exports.getFilteredProducts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch products', error });
   }
 };
+
 
 
 
@@ -604,9 +605,13 @@ exports.downloadPDF = async (req, res, next) => {
     const queryConditions = filters.map(filter => {
       // Start building the base query
       let query = {
-        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        price: { 
+          $gte: Number(filter.startPrice) || 0, 
+          $lte: Number(filter.endPrice) || Infinity 
+        },
+        
         IsActive: true,
-        isAvailable: true,
+        isAvailable: false,
       };
 
       // Conditionally add category if it exists
@@ -777,7 +782,7 @@ exports.getProducts = async (req, res, next) => {
   const query = {
     price: { $gte: startPrice, $lte: endPrice },
     IsActive: true,
-    isAvailable: true,
+    isAvailable: false,
     // quantity: { $gte: quantity }, // Check that the product has at least the specified quantity
   };
 
