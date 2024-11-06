@@ -266,17 +266,14 @@ exports.updateProductsDetails = async (req, res) => {
 
 exports.removeProductsDetails = async (req, res) => {
   try {
-    const updatedProduct = await ProductsDetails.findByIdAndUpdate(
-      req.params._id,  // Find the product by ID
-      { IsActive: false },  // Set IsActive to false instead of deleting the product
-      { new: true }  // Return the updated document
-    );
+    const deletedProduct = await ProductsDetails.findByIdAndDelete(req.params._id); // Delete the product by ID
 
-    if (!updatedProduct) {
+
+    if (!deletedProduct) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.json({ message: 'Product successfully deactivated', product: updatedProduct });
+    res.json({ message: 'Product successfully Deleted', product: updatedProduct });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
