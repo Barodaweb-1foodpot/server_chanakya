@@ -23,29 +23,29 @@ exports.createSubCategoryMaster = async (req, res) => {
     }
 
     let logo = req.file ? await compressImage(req.file, uploadDir) : null;
-   
-    let { 
+
+    let {
       categoryName,
       SrNo,
       subCategoryName,
       IsActive,
     } = req.body;
 
-      const newCategory = new SubCategoryMaster({
-        categoryName,
-        SrNo,
-        IsActive,
-        subCategoryName,
-        logo : logo,
-      });
+    const newCategory = new SubCategoryMaster({
+      categoryName,
+      SrNo,
+      IsActive,
+      subCategoryName,
+      logo: logo,
+    });
 
-      const Category = await newCategory.save();
-      
-      return res.status(200).json({
-        isOk: true,
-        data: Category,
-        message: "Sub Category created successfully",
-      });
+    const Category = await newCategory.save();
+
+    return res.status(200).json({
+      isOk: true,
+      data: Category,
+      message: "Sub Category created successfully",
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send("Internal Server Error");
@@ -53,8 +53,8 @@ exports.createSubCategoryMaster = async (req, res) => {
 };
 exports.listActiveCategoriesByCategory = async (req, res) => {
   try {
-    console.log("reqq",req.params);
-    const list = await SubCategoryMaster.find({IsActive : true, categoryName:req.params} ).sort({ SrNo: 1 }).exec();
+    console.log("reqq", req.params);
+    const list = await SubCategoryMaster.find({ IsActive: true, categoryName: req.params }).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (error) {
     Console.log(error);
@@ -64,7 +64,7 @@ exports.listActiveCategoriesByCategory = async (req, res) => {
 
 exports.listSubCategoryMaster = async (req, res) => {
   try {
-    const list = await SubCategoryMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
+    const list = await SubCategoryMaster.find({ IsActive: true }).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -82,9 +82,9 @@ exports.listSubCategoryMasterByParams = async (req, res) => {
       {
         $lookup: {
           from: 'categorymasters',
-          localField: 'categoryName', 
-          foreignField: '_id', 
-          as: 'categoryDetails' 
+          localField: 'categoryName',
+          foreignField: '_id',
+          as: 'categoryDetails'
         }
       },
       {
@@ -138,7 +138,7 @@ exports.listSubCategoryMasterByParams = async (req, res) => {
               },
               {
                 subCategoryName: { $regex: match, $options: "i" },
-              }      
+              }
             ],
           },
         },
@@ -181,15 +181,17 @@ exports.updateSubCategoryMaster = async (req, res) => {
     if (logo != null) {
       fieldvalues.logo = logo;
     }
-   
+
     const update = await SubCategoryMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
     );
-    res.json( {isOk: true,
+    res.json({
+      isOk: true,
       data: update,
-      message: "Sub Category updated successfully",});
+      message: "Sub Category updated successfully",
+    });
   } catch (err) {
     res.status(400).send(err);
   }
@@ -197,12 +199,24 @@ exports.updateSubCategoryMaster = async (req, res) => {
 
 exports.removeSubCategoryMaster = async (req, res) => {
   try {
-    const del = await SubCategoryMaster.findByIdAndUpdate(
-      req.params._id,  // Find the product by ID
-      { IsActive: false },  // Set IsActive to false instead of deleting the product
-      { new: true }  // Return the updated document
-    );
-    res.json(del);
+    // Find the category by ID
+    const category = await SubCategory.findById(req.params._id);
+
+    // Check if the category exists
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // If IsActive is true, set it to false
+    if (category.IsActive) {
+      category.IsActive = false;
+      await category.save(); // Save the updated document
+      return res.json({ message: "Category deactivated", category });
+    }
+
+    // If IsActive is already false, remove the document
+    const deletedCategory = await SubCategory.findByIdAndRemove(req.params._id);
+    res.json({ message: "Category removed", deletedCategory });
   } catch (err) {
     res.status(400).send(err);
   }
@@ -261,9 +275,9 @@ exports.getGroupedSubCategory = async (req, res) => {
         },
       },
     ];
-  
+
     const groupedData = await SubCategory.aggregate(pipeline);
-  
+
     res.status(200).json({
       success: true,
       data: groupedData,
@@ -275,7 +289,7 @@ exports.getGroupedSubCategory = async (req, res) => {
       error: err.message,
     });
   }
-  
+
 };
 
 async function compressImage(file, uploadDir) {

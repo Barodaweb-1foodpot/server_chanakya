@@ -212,18 +212,24 @@ exports.updateCategoryMaster = async (req, res) => {
 
 exports.removeCategoryMaster = async (req, res) => {
   try {
-    // const updatedProduct = await ProductsDetails.findByIdAndUpdate(
-    //   req.params._id,  // Find the product by ID
-    //   { IsActive: false },  // Set IsActive to false instead of deleting the product
-    //   { new: true }  // Return the updated document
-    // );
+    // Find the category by ID
+    const category = await CategoryMaster.findById(req.params._id);
 
-    const del = await CategoryMaster.findByIdAndUpdate(
-      req.params._id,  // Find the product by ID
-      { IsActive: false },  // Set IsActive to false instead of deleting the product
-      { new: true }  // Return the updated document
-    );
-    res.json(del);
+    // Check if the category exists
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // If IsActive is true, set it to false
+    if (category.IsActive) {
+      category.IsActive = false;
+      await category.save(); // Save the updated document
+      return res.json({ message: "Category deactivated", category });
+    }
+
+    // If IsActive is already false, remove the document
+    const deletedCategory = await CategoryMaster.findByIdAndRemove(req.params._id);
+    res.json({ message: "Category removed", deletedCategory });
   } catch (err) {
     res.status(400).send(err);
   }

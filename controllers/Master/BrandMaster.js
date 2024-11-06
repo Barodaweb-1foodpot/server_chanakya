@@ -20,8 +20,8 @@ exports.getBrandMasterDetails = async (req, res) => {
         $match: { _id: new mongoose.Types.ObjectId(req.params._id) }, // Match the document by its _id
       },
       {
-        $unwind: { 
-          path: "$brandBrochure", 
+        $unwind: {
+          path: "$brandBrochure",
           preserveNullAndEmptyArrays: true // Handle cases where brandBrochure is empty
         },
       },
@@ -34,8 +34,8 @@ exports.getBrandMasterDetails = async (req, res) => {
         },
       },
       {
-        $unwind: { 
-          path: "$brandBrochure.categoryDetails", 
+        $unwind: {
+          path: "$brandBrochure.categoryDetails",
           preserveNullAndEmptyArrays: true // Handle cases where categoryDetails might be empty
         },
       },
@@ -58,26 +58,26 @@ exports.getBrandMasterDetails = async (req, res) => {
       {
         $addFields: {
           brandBrochure: {
-            $cond: { 
-              if: { $eq: ["$brandBrochure", [{}]] }, 
-              then: [], 
-              else: "$brandBrochure" 
+            $cond: {
+              if: { $eq: ["$brandBrochure", [{}]] },
+              then: [],
+              else: "$brandBrochure"
             } // Ensure empty brandBrochure arrays are returned as []
           },
         },
       },
     ]);
-  
+
     if (find.length === 0) {
       return res.status(404).json({ message: "Brand not found" });
     }
-  
+
     // Respond with the aggregated result (only one item expected)
     res.json(find[0]);
   } catch (error) {
     return res.status(500).send(error);
   }
-  
+
 };
 
 
@@ -100,8 +100,8 @@ exports.createBrandMaster = async (req, res) => {
     });
 
     // let logo = req.file ? await compressImage(req.file, uploadDir) : null;
-   
-    let { 
+
+    let {
       brandName,
       SrNo,
       IsActive,
@@ -116,31 +116,31 @@ exports.createBrandMaster = async (req, res) => {
       };
     }) : [];
 
-      const newCategory = new BrandMaster({
-        brandName,
-        SrNo,
-        IsActive,
-        logo : logo,
-        brandBrochure: extractedObjectsAdditionalLink,
-      });
+    const newCategory = new BrandMaster({
+      brandName,
+      SrNo,
+      IsActive,
+      logo: logo,
+      brandBrochure: extractedObjectsAdditionalLink,
+    });
 
-      const Category = await newCategory.save();
-      
-      return res.status(200).json({
-        isOk: true,
-        data: Category,
-        message: "Record created successfully",
-      });
+    const Category = await newCategory.save();
+
+    return res.status(200).json({
+      isOk: true,
+      data: Category,
+      message: "Record created successfully",
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send("Internal Server Error");
   }
 };
- 
+
 
 exports.listBrandMaster = async (req, res) => {
   try {
-    const list = await BrandMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
+    const list = await BrandMaster.find({ IsActive: true }).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -197,7 +197,7 @@ exports.listBrandMasterByParams = async (req, res) => {
             $or: [
               {
                 brandName: { $regex: match, $options: "i" },
-              },      
+              },
             ],
           },
         },
@@ -236,7 +236,7 @@ exports.updateBrandMaster = async (req, res) => {
     let fieldvalues = { ...req.body };
 
     const additionalLinkFiles = {};
-    
+
     req.files.forEach(file => {
       if (file.fieldname === 'logo') {
         fieldvalues.logo = `uploads/BrandMaster/${file.filename}`;
@@ -278,17 +278,32 @@ exports.updateBrandMaster = async (req, res) => {
 
 exports.removeBrandMaster = async (req, res) => {
   try {
-    const del = await BrandMaster.findByIdAndDelete(req.params._id)
-      
-    res.json(del);
+    // Find the category by ID
+    const category = await BrandMaster.findById(req.params._id);
+
+    // Check if the category exists
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // If IsActive is true, set it to false
+    if (category.IsActive) {
+      category.IsActive = false;
+      await category.save(); // Save the updated document
+      return res.json({ message: "Category deactivated", category });
+    }
+
+    // If IsActive is already false, remove the document
+    const deletedCategory = await BrandMaster.findByIdAndRemove(req.params._id);
+    res.json({ message: "Category removed", deletedCategory });
   } catch (err) {
     res.status(400).send(err);
   }
 };
 
-exports.listActiveBrands = async (req , res) => {
+exports.listActiveBrands = async (req, res) => {
   try {
-    const list = await BrandMaster.find({IsActive : true}).sort({ SrNo: 1 }).exec();
+    const list = await BrandMaster.find({ IsActive: true }).sort({ SrNo: 1 }).exec();
     res.json(list);
   } catch (err) {
     res.status(400).send(err)
