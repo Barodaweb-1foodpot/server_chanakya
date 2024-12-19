@@ -74,7 +74,16 @@ exports.createProductsDetails = async (req, res) => {
 
 exports.listProductsDetails = async (req, res) => {
   try {
-    const list = await ProductsDetails.find({ isAvailable: true, IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
+    const list = await ProductsDetails.find({ isAvailable: false, IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
+    res.json(list);
+  } catch (error) {
+    return res.status(400).send(error);
+  }
+};
+
+exports.listProductsDetailsForProductList = async (req, res) => {
+  try {
+    const list = await ProductsDetails.find({ IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
     res.json(list);
   } catch (error) {
     return res.status(400).send(error);
@@ -258,7 +267,7 @@ exports.updateProductsDetails = async (req, res) => {
 
       { new: true }
     );
-    res.json(update);
+    res.json({ update, isOk: true });
   } catch (err) {
     res.status(400).send(err);
   }
@@ -422,6 +431,7 @@ exports.getUniquefilters = async (req, res) => {
   }
 };
 const mongoose = require('mongoose');
+const BrandMaster = require("../../models/Master/BrandMaster");
 exports.getFilteredProducts = async (req, res) => {
   try {
     const { activeBrandIndices, activeCategoriesIndices, activeSubCategoriesIndices, value } = req.body;
@@ -443,7 +453,7 @@ exports.getFilteredProducts = async (req, res) => {
     if (activeSubCategoriesIndices && activeSubCategoriesIndices.length > 0) {
       query.subCategoryName = { $in: activeSubCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
-    
+
 
     // Filter by product IDs or SKU (assuming value is product ID or SKU)
 
@@ -509,6 +519,8 @@ exports.getFilteredProducts = async (req, res) => {
           _id: null, // Grouping all matched products
           uniqueBrandNames: { $addToSet: "$brandName._id" }, // Collect unique brand IDs
           uniqueBrandDetails: { $addToSet: "$brandName" },   // Collect unique brand details
+          maxPrice: { $max: "$price" }, // Get the maximum price
+          minPrice: { $min: "$price" }, // Get the minimum price
           products: {
             $push: {
               _id: "$_id",
@@ -521,7 +533,8 @@ exports.getFilteredProducts = async (req, res) => {
               categoryName: "$categoryName",
               subCategoryName: "$subCategoryName",
               brandName: "$brandName",
-              SKU: "$SKU"
+              SKU: "$SKU",
+              isAvailable: "$isAvailable"
             }
           },
         },
@@ -532,6 +545,8 @@ exports.getFilteredProducts = async (req, res) => {
           uniqueBrandNames: 1, // Return the unique brand IDs
           uniqueBrandDetails: 1, // Return the unique brand details
           products: 1, // Return the product details
+          maxPrice: 1, // Return the maximum price
+          minPrice: 1, // Return the minimum price
         },
       }
     ]);
@@ -561,6 +576,45 @@ exports.getLastSKUNo = async (req, res) => {
     return res.status(500).json({ message: "Error retrieving the last SKU", error });
   }
 };
+exports.brandforProductList = async (req, res) => {
+  try {
+    let { category, subCategory } = req.body;
+
+    // Build the query dynamically
+    const query = {};
+    if (category) query.categoryName = category;
+    if (subCategory) query.subCategoryName = subCategory;
+
+    // Fetch product details based on the query
+    const products = await ProductsDetails.find(query).exec();
+
+    // Check if no products are found
+    if (!products || products.length === 0) {
+      return res.status(200).json({ isOk: false, message: "No Products" });
+    }
+
+    // Extract unique brand IDs
+    const uniqueBrandIds = [
+      ...new Set(products.map((product) => product.brandName)), // Assuming `brandName` contains the brand ID
+    ];
+    // Perform the `$lookup` to fetch brand details
+    const brandDetails = await BrandMaster.aggregate([
+      {
+        $match: { _id: { $in: uniqueBrandIds.map((id) => new mongoose.Types.ObjectId(id)) } }, // Match unique brand IDs
+      },
+      {
+        $project: { _id: 1, brandName: 1 }, // Project only necessary fields
+      },
+    ]);
+
+    // Return the matched brand details
+    return res.status(200).json({ isOk: true, brands: brandDetails });
+  } catch (error) {
+    console.error(error); // Log the error for debugging
+    return res.status(500).json({ message: "Internal server error", error });
+  }
+};
+
 
 async function compressImage(file, uploadDir) {
   // Ensure uploadDir is a string path
@@ -604,9 +658,9 @@ exports.downloadPDF = async (req, res, next) => {
     const queryConditions = filters.map(filter => {
       // Start building the base query
       let query = {
-        price: { $gte: filter.startPrice || 0, $lte: filter.endPrice || Infinity },
+        price: { $gte: Number(filter.startPrice) || 0, $lte: Number(filter.endPrice) || Infinity },
         IsActive: true,
-        isAvailable: true,
+        isAvailable: false,
       };
 
       // Conditionally add category if it exists
@@ -637,6 +691,7 @@ exports.downloadPDF = async (req, res, next) => {
       .populate('brandName')
       .populate('categoryName')
       .populate('subCategoryName');
+    console.log(products)
 
 
 
@@ -679,16 +734,29 @@ exports.downloadPDF = async (req, res, next) => {
       allowProtoPropertiesByDefault: true,
       allowProtoMethodsByDefault: true
     });
+    let productsWithFullImageUrls
+    if (filters[0].discount === false) {
+      // Prepare products with full image URLs and discount rates
+      productsWithFullImageUrls = updatedProducts.map(product => ({
+        ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+        productImage: `https://server.chanakyacorporate.com/${product.productImage}`,
+        brandName: product.brandName.brandName, // Extract brand name string
+        categoryName: product.categoryName.categoryName, // Extract category name string
+        subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+        }));
+    }
+    else{
+      productsWithFullImageUrls = updatedProducts.map(product => ({
+        ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
+        productImage: `https://server.chanakyacorporate.com/${product.productImage}`,
+        brandName: product.brandName.brandName, // Extract brand name string
+        categoryName: product.categoryName.categoryName, // Extract category name string
+        subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
+        discountrate: product.discount ? product.newPrice - ((product.newPrice * product.discount) / 100) : product.newPrice // Calculate discounted price if discount exists
+       
+      }));
+    }
 
-    // Prepare products with full image URLs and discount rates
-    const productsWithFullImageUrls = updatedProducts.map(product => ({
-      ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
-      productImage: `${process.env.REACT_APP_API_URL}/${product.productImage}`,
-      brandName: product.brandName.brandName, // Extract brand name string
-      categoryName: product.categoryName.categoryName, // Extract category name string
-      subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
-      discountrate: product.discount ? product.newPrice - ((product.newPrice * product.discount) / 100) : product.newPrice // Calculate discounted price if discount exists
-    }));
 
     // Register a custom Handlebars helper to group products into rows of 5
     handlebars.registerHelper('grouped', function (items, groupSize) {
@@ -771,13 +839,13 @@ exports.downloadPDF = async (req, res, next) => {
 };
 
 exports.getProducts = async (req, res, next) => {
-  const { startPrice, endPrice, category, subCategory, quantity } = req.body; // Assuming these are the filters sent from the frontend
+  const { startPrice, endPrice, category, subCategory, quantity, brandName } = req.body; // Assuming these are the filters sent from the frontend
 
   // Build the query object based on the filter data
   const query = {
-    price: { $gte: startPrice, $lte: endPrice },
+    price: { $gte: startPrice, $lte: endPrice || Infinity },
     IsActive: true,
-    isAvailable: true,
+    isAvailable: false,
     // quantity: { $gte: quantity }, // Check that the product has at least the specified quantity
   };
 
@@ -787,6 +855,9 @@ exports.getProducts = async (req, res, next) => {
   }
   if (subCategory) {
     query.subCategoryName = subCategory;
+  }
+  if (brandName) {
+    query.brandName = brandName;
   }
   // console.log(query)
   // Find products matching the query
@@ -814,7 +885,7 @@ exports.downloadPDFFromFrontend = async (req, res, next) => {
     // console.log(queryConditions);
 
     // Use the $or operator to combine all filter conditions
-    const products = await ProductsDetails.find({ _id: AllProduct , IsActive:true })
+    const products = await ProductsDetails.find({ _id: AllProduct, IsActive: true })
       .populate('brandName')
       .populate('categoryName')
       .populate('subCategoryName');

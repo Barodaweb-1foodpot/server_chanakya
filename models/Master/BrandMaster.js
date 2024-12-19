@@ -20,10 +20,10 @@ const BrandMasterSchema = new mongoose.Schema(
     },
     brandBrochure: [
       {
-        categoryName: {
+        categoryName: [{
           type: mongoose.Schema.Types.ObjectId,
         ref: "CategoryMaster",
-        },
+        }],
         title: {
           type: String,
         },
