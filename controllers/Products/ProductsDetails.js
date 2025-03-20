@@ -83,12 +83,36 @@ exports.listProductsDetails = async (req, res) => {
 
 exports.listProductsDetailsForProductList = async (req, res) => {
   try {
-    const list = await ProductsDetails.find({ IsActive: true }).populate('brandName').populate('categoryName').populate('subCategoryName').exec();
-    res.json(list);
+    console.log(req.body);
+
+   
+    // **Step 1: Get total count of active products (before pagination)**
+    const totalCount = await ProductsDetails.countDocuments({ IsActive: true });
+
+    // **Step 2: Fetch paginated product data**
+    let list = await ProductsDetails.find({ IsActive: true })
+      .populate("brandName")
+      .populate("categoryName")
+      .populate("subCategoryName") 
+      .exec();
+
+    // **Step 3: Manual sorting (if needed)**
+    list = list.sort((a, b) => {
+      if (!a.brandName?.SrNo) return 1; // Move null values to the end
+      if (!b.brandName?.SrNo) return -1;
+      return a.brandName.SrNo - b.brandName.SrNo; // Ascending order
+    });
+
+    res.json({
+      success: true,
+      totalCount, // Total number of products before pagination
+      data: list, // Paginated products
+    });
   } catch (error) {
     return res.status(400).send(error);
   }
 };
+
 
 exports.listProductByCategory = async (req, res) => {
   try {
@@ -434,93 +458,54 @@ const mongoose = require('mongoose');
 const BrandMaster = require("../../models/Master/BrandMaster");
 exports.getFilteredProducts = async (req, res) => {
   try {
-    const { activeBrandIndices, activeCategoriesIndices, activeSubCategoriesIndices, value } = req.body;
-    console.log(req.body)
+    const { activeBrandIndices, activeCategoriesIndices, activeSubCategoriesIndices, value,  } = req.body;
+    console.log(req.body);
+
     // Build the query object
     const query = {};
 
-    // Filter by brand if activeBrandIndices are provided
     if (activeBrandIndices && activeBrandIndices.length > 0) {
       query.brandName = { $in: activeBrandIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
-
-    // Filter by category if activeCategoriesIndices are provided
     if (activeCategoriesIndices && activeCategoriesIndices.length > 0) {
       query.categoryName = { $in: activeCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
-
-    // Filter by subcategory if activeSubCategoriesIndices are provided
     if (activeSubCategoriesIndices && activeSubCategoriesIndices.length > 0) {
       query.subCategoryName = { $in: activeSubCategoriesIndices.map(id => new mongoose.Types.ObjectId(id)) };
     }
 
+    // **1st Aggregation: Get total count**
+    const totalCountResult = await ProductsDetails.aggregate([
+      { $match: { IsActive: true, ...query, price: { $gte: value[0], $lte: value[1] } } },
+      { $count: "totalCount" }
+    ]);
 
-    // Filter by product IDs or SKU (assuming value is product ID or SKU)
+    const totalCount = totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0; // Extract count
 
-
-    // Query for fetching the product details
+    // **2nd Aggregation: Get paginated data**
     const products = await ProductsDetails.aggregate([
+      { $match: { IsActive: true, ...query, price: { $gte: value[0], $lte: value[1] } } },
       {
-        $match: { IsActive: true } // Only include products where IsActive is true
+        $lookup: { from: 'categorymasters', localField: 'categoryName', foreignField: '_id', as: 'categoryName' },
       },
       {
-        $match: {
-          ...query, // Match the filtered criteria for brand, category, and subcategory
-          price: {
-            $gte: value[0],  // value[0] is the minimum price
-            $lte: value[1]   // value[1] is the maximum price
-          }
-        },
+        $lookup: { from: 'subcategorymasters', localField: 'subCategoryName', foreignField: '_id', as: 'subCategoryName' },
       },
       {
-        $lookup: {
-          from: 'categorymasters', // Collection for categories
-          localField: 'categoryName',
-          foreignField: '_id',
-          as: 'categoryName',
-        },
+        $lookup: { from: 'brandmasters', localField: 'brandName', foreignField: '_id', as: 'brandName' },
       },
-      {
-        $lookup: {
-          from: 'subcategorymasters', // Collection for subcategories
-          localField: 'subCategoryName',
-          foreignField: '_id',
-          as: 'subCategoryName',
-        },
-      },
-      {
-        $lookup: {
-          from: 'brandmasters', // Collection for brands
-          localField: 'brandName',
-          foreignField: '_id',
-          as: 'brandName',
-        },
-      },
-      {
-        $unwind: {
-          path: "$categoryName",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $unwind: {
-          path: "$subCategoryName",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $unwind: {
-          path: "$brandName",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
+      { $unwind: { path: "$categoryName", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$subCategoryName", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$brandName", preserveNullAndEmptyArrays: true } },
+      { $addFields: { "brandName.srno": { $toString: "$brandName.SrNo" } } },
+      { $sort: { "brandName.srno": 1 } }, // Sorting brands
+       {
         $group: {
-          _id: null, // Grouping all matched products
-          uniqueBrandNames: { $addToSet: "$brandName._id" }, // Collect unique brand IDs
-          uniqueBrandDetails: { $addToSet: "$brandName" },   // Collect unique brand details
-          maxPrice: { $max: "$price" }, // Get the maximum price
-          minPrice: { $min: "$price" }, // Get the minimum price
+          _id: null,
+          uniqueBrandNames: { $addToSet: "$brandName._id" },
+          uniqueBrandDetails: { $addToSet: "$brandName" },
+          maxPrice: { $max: "$price" },
+          minPrice: { $min: "$price" },
           products: {
             $push: {
               _id: "$_id",
@@ -541,24 +526,27 @@ exports.getFilteredProducts = async (req, res) => {
       },
       {
         $project: {
-          _id: 0, // Do not include _id in the result
-          uniqueBrandNames: 1, // Return the unique brand IDs
-          uniqueBrandDetails: 1, // Return the unique brand details
-          products: 1, // Return the product details
-          maxPrice: 1, // Return the maximum price
-          minPrice: 1, // Return the minimum price
+          _id: 0,
+          uniqueBrandNames: 1,
+          uniqueBrandDetails: 1,
+          products: 1,
+          maxPrice: 1,
+          minPrice: 1,
         },
       }
     ]);
 
-
-
-    res.status(200).json({ success: true, products });
+    res.status(200).json({
+      success: true,
+      totalCount, // Send total count
+      products
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Failed to fetch products', error });
   }
 };
+
 
 
 

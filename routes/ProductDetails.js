@@ -59,7 +59,7 @@ router.post("/auth/create/product-details",upload.single("myFile"),catchAsync(cr
 
 router.get("/auth/list/product-details", catchAsync(listProductsDetails));
 
-router.get("/auth/list/product-details-for-product-list", catchAsync(listProductsDetailsForProductList));
+router.post("/auth/list/product-details-for-product-list", catchAsync(listProductsDetailsForProductList));
 
 router.post("/auth/list-by-params/product-details",catchAsync(listProductsDetailsByParams)
 );
