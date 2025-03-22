@@ -98,3 +98,16 @@ const port = process.env.PORT || 8000;
 app.listen(port, () => {
   console.log(`server is running on port ${port}`);
 });
+
+app.use("/admin", express.static(path.join(__dirname, "/out/admin")));
+
+app.get("/admin/*", async (req, res) => {
+  res.sendFile(path.join(__dirname, "/out/admin", "index.html"));
+});
+
+
+app.use("/", express.static(path.join(__dirname, "/out/front")));
+
+app.get("/*", async (req, res) => {
+  res.sendFile(path.join(__dirname, "/out/front", "index.html"));
+});
