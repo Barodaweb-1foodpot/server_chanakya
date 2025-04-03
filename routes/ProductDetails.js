@@ -23,7 +23,9 @@ const {
   getProducts,
   deleteFile,
   listProductsDetailsFromFrontendByParams,
-  sendQuotationMail
+  sendQuotationMail,
+  listProductsDetailsForProductList,
+  brandforProductList
 } = require("../controllers/Products/ProductsDetails");
 const multer = require("multer");
 const path= require('path')
@@ -56,6 +58,8 @@ router.post("/auth/create/product-details",upload.single("myFile"),catchAsync(cr
 );
 
 router.get("/auth/list/product-details", catchAsync(listProductsDetails));
+
+router.post("/auth/list/product-details-for-product-list", catchAsync(listProductsDetailsForProductList));
 
 router.post("/auth/list-by-params/product-details",catchAsync(listProductsDetailsByParams)
 );
@@ -100,5 +104,8 @@ router.post("/auth/list-by-params/product-details-from-frontend", catchAsync(lis
 );
 
 router.post("/auth/sendQuotationMail", catchAsync(sendQuotationMail));
+
+
+router.post("/auth/get/brandforProductList", catchAsync(brandforProductList));
 
 module.exports = router;

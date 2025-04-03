@@ -224,3 +224,128 @@ exports.listCatalogueInquiryByParams = async (req, res) => {
         res.status(500).send(error);
     }
 };
+
+
+const ExcelJS = require("exceljs");
+exports.excelDownloadforHighestLoyaltyPoint = async (req, res) => {
+    try {
+      let { startDate, endDate } = req.body;
+  
+      // Parse startDate and endDate to ISO format
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire day of endDate
+  
+      // Aggregation pipeline
+      const query = [
+        {
+          $match: {
+            createdAt: {
+              $gte: start,
+              $lte: end,
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "usermasters", // Collection name for UserMaster
+            localField: "user",
+            foreignField: "_id",
+            as: "userDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "categorymasters", // Collection name for CategoryMaster
+            localField: "categoryName",
+            foreignField: "_id",
+            as: "categoryDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "subcategorymasters", // Collection name for SubCategoryMaster
+            localField: "subCategoryName",
+            foreignField: "_id",
+            as: "subCategoryDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "productdetails", // Collection name for ProductDetails
+            localField: "productName",
+            foreignField: "_id",
+            as: "productDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$userDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: "$categoryDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: "$subCategoryDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+      ];
+  
+      const catalogues = await CatalogueInquiry.aggregate(query).allowDiskUse(true);
+  
+      // Create Excel workbook and worksheet
+      let workbook = new ExcelJS.Workbook();
+      let worksheet = workbook.addWorksheet("Highest Loyalty catalogues");
+  
+      // Define columns
+      worksheet.columns = [
+        { header: "Name", key: "name", width: 20 },
+        { header: "Category", key: "categoryName", width: 20 },
+        { header: "Sub-Category", key: "subCategoryName", width: 20 },
+        { header: "Email", key: "email", width: 25 },
+        { header: "Contact No", key: "contactNo", width: 15 },
+        { header: "Address", key: "address", width: 25 },
+        { header: "Product Names", key: "productNames", width: 30 }, // New column for product names
+      ];
+  
+      // Add rows
+      catalogues.forEach((catalogue) => {
+        // Extract product names as a comma-separated string
+        const productNames = (catalogue.productDetails || [])
+          .map((product) => product.productName || "N/A")
+          .join(", ");
+  
+        worksheet.addRow({
+          name: catalogue.userDetails?.Name || "N/A",
+          categoryName: catalogue.categoryDetails?.categoryName || "N/A",
+          subCategoryName: catalogue.subCategoryDetails?.subCategoryName || "N/A",
+          email: catalogue.userDetails?.Email || "N/A",
+          contactNo: catalogue.userDetails?.Mobile || "N/A",
+          address: catalogue.userDetails?.companyAddress || "N/A",
+          productNames: productNames || "N/A", // Add the product names
+        });
+      });
+  
+      // Prepare and send Excel file
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", "attachment; filename=report.xlsx");
+  
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ isOk: false, error: error.message });
+    }
+  };
+  
+  

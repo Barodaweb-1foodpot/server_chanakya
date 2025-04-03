@@ -22,7 +22,7 @@ exports.getBrandMasterDetails = async (req, res) => {
       {
         $unwind: {
           path: "$brandBrochure",
-          preserveNullAndEmptyArrays: true // Handle cases where brandBrochure is empty
+          preserveNullAndEmptyArrays: true, // Handle cases where brandBrochure is empty
         },
       },
       {
@@ -30,13 +30,18 @@ exports.getBrandMasterDetails = async (req, res) => {
           from: "categorymasters", // The collection containing CategoryMaster details
           localField: "brandBrochure.categoryName", // Field in brandBrochure that references CategoryMaster
           foreignField: "_id", // Field in CategoryMaster to match against
-          as: "brandBrochure.categoryDetails", // Store the lookup result in categoryDetails inside brandBrochure
+          as: "categoryDetails", // Store the lookup result directly as categoryDetails
         },
       },
       {
-        $unwind: {
-          path: "$brandBrochure.categoryDetails",
-          preserveNullAndEmptyArrays: true // Handle cases where categoryDetails might be empty
+        $addFields: {
+          "brandBrochure.categoryDetails": {
+            $cond: {
+              if: { $gt: [{ $size: "$categoryDetails" }, 0] }, // Check if categoryDetails exists
+              then: "$categoryDetails", // Add categoryDetails if it exists
+              else: null, // Otherwise set to null
+            },
+          },
         },
       },
       {
@@ -48,9 +53,11 @@ exports.getBrandMasterDetails = async (req, res) => {
           IsActive: { $first: "$IsActive" },
           brandBrochure: {
             $push: {
-              title: "$brandBrochure.title", // Retain the original title field
-              linkdoc: "$brandBrochure.linkdoc", // Retain the original linkdoc field
-              categoryDetails: "$brandBrochure.categoryDetails", // Include the categoryDetails from the lookup
+              $cond: {
+                if: { $eq: ["$brandBrochure.categoryDetails", null] }, // Check if categoryDetails is null
+                then: null, // If null, set brandBrochure to null
+                else: "$brandBrochure", // Otherwise, include the brandBrochure
+              },
             },
           },
         },
@@ -58,11 +65,11 @@ exports.getBrandMasterDetails = async (req, res) => {
       {
         $addFields: {
           brandBrochure: {
-            $cond: {
-              if: { $eq: ["$brandBrochure", [{}]] },
-              then: [],
-              else: "$brandBrochure"
-            } // Ensure empty brandBrochure arrays are returned as []
+            $filter: {
+              input: "$brandBrochure", // Filter the array
+              as: "brochure",
+              cond: { $ne: ["$$brochure", null] }, // Remove null values
+            },
           },
         },
       },
@@ -77,8 +84,10 @@ exports.getBrandMasterDetails = async (req, res) => {
   } catch (error) {
     return res.status(500).send(error);
   }
-
 };
+
+
+
 
 
 exports.createBrandMaster = async (req, res) => {
@@ -245,16 +254,17 @@ exports.updateBrandMaster = async (req, res) => {
         additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
       }
     });
-
+    console.log(fieldvalues.brandBrochure)
     const extractedObjectsAdditionalLink = fieldvalues.brandBrochure ? fieldvalues.brandBrochure.map((item, index) => {
+      console.log("---------------", item.categoryName.split(","))
       return {
-        categoryName: item.categoryName,
+        categoryName: item.categoryName.split(","),
         title: item.title,
         // Ensure linkdoc is either a string or null
         linkdoc: additionalLinkFiles[index] || item.linkdoc || null
       };
     }) : [];
-
+    console.log(extractedObjectsAdditionalLink)
     if (extractedObjectsAdditionalLink) {
       fieldvalues.brandBrochure = extractedObjectsAdditionalLink;
     }
@@ -309,6 +319,7 @@ exports.listActiveBrands = async (req, res) => {
     res.status(400).send(err)
   }
 }
+
 
 async function compressImage(file, uploadDir) {
   const filePath = path.join(uploadDir, file.filename);

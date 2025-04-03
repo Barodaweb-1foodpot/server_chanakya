@@ -7,7 +7,8 @@ const catchAsync = require("../utils/catchAsync");
 const {
     createCatalogueInquiry,
     listCatalogueInquiryByParams,
-    getCatalogueInquiry
+    getCatalogueInquiry,
+    excelDownloadforHighestLoyaltyPoint
 } = require("../controllers/CatalogueInquiry/CatalogueInquiry");
 const multer = require("multer");
 const path= require('path')
@@ -40,5 +41,6 @@ router.post("/auth/listByparams/listCatalogueInquiryByParams", catchAsync(listCa
 
 router.get("/auth/get/CatalogueInquiry/:_id", catchAsync(getCatalogueInquiry));
 
+router.post("/auth/excelDownloadforCatalogueInquiry", catchAsync(excelDownloadforHighestLoyaltyPoint));
 
 module.exports = router;
