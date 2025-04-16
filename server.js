@@ -61,6 +61,24 @@ app.get("/error", (req, res) => {
   res.test("hit the api button. v-24.01.2024.");
 });
 
+app.use("/admin", express.static(path.join(__dirname, "/out/admin")));
+
+
+app.get("/admin/*", async (req, res) => {
+  res.sendFile(path.join(__dirname, "/out/admin", "index.html"));
+});
+
+
+
+
+app.use("/", express.static(path.join(__dirname, "/out/front")));
+
+
+app.get("/*", async (req, res) => {
+  res.sendFile(path.join(__dirname, "/out/front", "index.html"));
+});
+
+
 app.use(async (err, req, res, next) => {
   let filedata = {
     datetime: new Date(),
