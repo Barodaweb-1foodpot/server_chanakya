@@ -725,7 +725,7 @@ exports.downloadPDF = async (req, res, next) => {
       // Prepare products with full image URLs and discount rates
       productsWithFullImageUrls = updatedProducts.map(product => ({
         ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
-        productImage: `https://server.chanakyacorporate.com/${product.productImage}`,
+        productImage: `https://front.chanakyacorporate.com/${product.productImage}`,
         brandName: product.brandName.brandName, // Extract brand name string
         categoryName: product.categoryName.categoryName, // Extract category name string
         subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
@@ -734,7 +734,7 @@ exports.downloadPDF = async (req, res, next) => {
     else{
       productsWithFullImageUrls = updatedProducts.map(product => ({
         ...product.toObject(), // Convert Mongoose Document to plain JavaScript object
-        productImage: `https://server.chanakyacorporate.com/${product.productImage}`,
+        productImage: `https://front.chanakyacorporate.com/${product.productImage}`,
         brandName: product.brandName.brandName, // Extract brand name string
         categoryName: product.categoryName.categoryName, // Extract category name string
         subCategoryName: product.subCategoryName.subCategoryName, // Extract sub-category name string
@@ -1231,7 +1231,7 @@ exports.sendQuotationMail = async (req, res) => {
                 <table border="0" cellpadding="0" cellspacing="0" width="480">
                     <tr>
                         <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
-                          <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                          <img src="https://front.chanakyacorporate.com/uploads/logo.png" />
                         </td>
                     </tr>
 
@@ -1409,7 +1409,7 @@ exports.sendQuotationMail = async (req, res) => {
                 <table border="0" cellpadding="0" cellspacing="0" width="480">
                     <tr>
                         <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
-                          <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                          <img src="https://front.chanakyacorporate.com/uploads/logo.png" />
                         </td>
                     </tr>
 

@@ -509,7 +509,7 @@ const sendLoginOTPEmail = async (email, otp) => {
                       <table border="0" cellpadding="0" cellspacing="0" width="480">
                           <tr>
                               <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
-                                <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                                <img src="https://front.chanakyacorporate.com/uploads/logo.png" />
                               </td>
                           </tr>
       
@@ -839,7 +839,7 @@ const sendForgetPasswordOTPEmail = async (email, otp) => {
                       <table border="0" cellpadding="0" cellspacing="0" width="480">
                           <tr>
                               <td bgcolor="#ffffff" align="center" valign="top" style="padding: 20px 30px 0px 30px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; line-height: inherit;">
-                                <img src="https://server.chanakyacorporate.com/uploads/logo.png" />
+                                <img src="https://front.chanakyacorporate.com/uploads/logo.png" />
                               </td>
                           </tr>
       
