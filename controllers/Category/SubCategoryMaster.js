@@ -172,21 +172,73 @@ exports.listSubCategoryMasterByParams = async (req, res) => {
   }
 };
 
+// exports.updateSubCategoryMaster = async (req, res) => {
+//   try {
+//     let logo = req.file
+//       ? `uploads/SubCategoryMaster/${req.file.filename}`
+//       : null;
+//     let fieldvalues = { ...req.body };
+//     if (logo != null) {
+//       fieldvalues.logo = logo;
+//     }
+
+//     const update = await SubCategoryMaster.findOneAndUpdate(
+//       { _id: req.params._id },
+//       fieldvalues,
+//       { new: true }
+//     );
+//     res.json({
+//       isOk: true,
+//       data: update,
+//       message: "Sub Category updated successfully",
+//     });
+//   } catch (err) {
+//     res.status(400).send(err);
+//   }
+// };
+
+ 
 exports.updateSubCategoryMaster = async (req, res) => {
   try {
-    let logo = req.file
-      ? `uploads/SubCategoryMaster/${req.file.filename}`
-      : null;
+    const uploadDir = `${__basedir}/uploads/SubCategoryMaster`;
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const existingSubCategory = await SubCategoryMaster.findById(req.params._id);
+    if (!existingSubCategory) {
+      return res.status(404).json({ message: "Sub Category not found" });
+    }
+
     let fieldvalues = { ...req.body };
-    if (logo != null) {
+    let logo = null;
+
+    if (req.file) {
+      logo = `uploads/SubCategoryMaster/${req.file.filename}`;
+
+      // Remove old logo if it exists
+      if (existingSubCategory.logo) {
+        const oldLogoPath = path.join(__basedir, 'uploads', 'SubCategoryMaster', path.basename(existingSubCategory.logo));
+        fs.unlink(oldLogoPath, (err) => {
+          if (err) {
+            console.error('Error deleting old logo:', err.message);
+          } else {
+            console.log('Old logo deleted:', oldLogoPath);
+          }
+        });
+      }
+    }
+
+    if (logo) {
       fieldvalues.logo = logo;
     }
 
     const update = await SubCategoryMaster.findOneAndUpdate(
       { _id: req.params._id },
-      fieldvalues,
+      { $set: fieldvalues },
       { new: true }
     );
+
     res.json({
       isOk: true,
       data: update,
@@ -196,6 +248,7 @@ exports.updateSubCategoryMaster = async (req, res) => {
     res.status(400).send(err);
   }
 };
+
 
 exports.removeSubCategoryMaster = async (req, res) => {
   try {

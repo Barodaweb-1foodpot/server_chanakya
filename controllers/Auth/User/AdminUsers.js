@@ -1,5 +1,6 @@
 const User = require("../../../models/Auth/User/AdminUsers");
 const fs = require("fs");
+const path = require('path');
 
 exports.getAdminUser = async (req, res) => {
   try {
@@ -151,25 +152,78 @@ exports.listAdminUserByParams = async (req, res) => {
   }
 };
 
+// exports.updateAdminUser = async (req, res) => {
+//   try {
+//     let bannerImage = req.file
+//       ? `uploads/userImages/${req.file.filename}`
+//       : null;
+//     let fieldvalues = { ...req.body };
+//     if (bannerImage != null) {
+//       fieldvalues.bannerImage = bannerImage;
+//     }
+//     const update = await User.findOneAndUpdate(
+//       { _id: req.params._id },
+//       fieldvalues,
+//       { new: true }
+//     );
+//     res.json(update);
+//   } catch (err) {
+//     res.status(400).send(err);
+//   }
+// };
+
+
 exports.updateAdminUser = async (req, res) => {
   try {
-    let bannerImage = req.file
-      ? `uploads/userImages/${req.file.filename}`
-      : null;
+    const userId = req.params._id;
+    const existingUser = await User.findById(userId);
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let bannerImage = null;
+    // console.log(req.file)
+    // If a new file is uploaded
+    if (req.file) {
+      bannerImage = `uploads/userImages/${req.file.filename}`;
+      console.log(existingUser.bannerImage)
+      // Remove old image file if it exists
+      if (existingUser.bannerImage) {
+      const oldImagePath = path.join(`${process.env.REACT_APP_API_URL}`, '..', '..', 'uploads', 'userImages', path.basename(existingUser.bannerImage));
+
+        // const oldImagePath = path.join(__dirname, '..', existingUser.bannerImage);
+        console.log(oldImagePath)
+        fs.unlink(oldImagePath, (err) => {
+          if (err) {
+            console.error('Error deleting old banner image:', err.message);
+          } else {
+            console.log('Old banner image deleted:', oldImagePath);
+          }
+        });
+      }
+      else{
+        console.log("pppppppp")
+      }
+    }
+
     let fieldvalues = { ...req.body };
-    if (bannerImage != null) {
+    if (bannerImage) {
       fieldvalues.bannerImage = bannerImage;
     }
+
     const update = await User.findOneAndUpdate(
-      { _id: req.params._id },
+      { _id: userId },
       fieldvalues,
       { new: true }
     );
+
     res.json(update);
   } catch (err) {
     res.status(400).send(err);
   }
 };
+
 
 exports.removeAdminUser = async (req, res) => {
   try {

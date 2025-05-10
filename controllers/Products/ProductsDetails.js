@@ -267,6 +267,37 @@ exports.listProductsDetailsByParams = async (req, res) => {
   }
 };
 
+// exports.updateProductsDetails = async (req, res) => {
+//   try {
+//     const uploadDir = `${__basedir}/uploads/Products`;
+
+//     // Create the directory if it doesn't exist
+//     if (!fs.existsSync(uploadDir)) {
+//       fs.mkdirSync(uploadDir, { recursive: true });
+//     }
+
+//     // console.log("req.file", req.file)
+//     let productImage = req.file
+//       ? await compressImage(req.file, uploadDir)
+//       : null;
+//     let fieldvalues = { ...req.body };
+//     if (productImage != null) {
+//       fieldvalues.productImage = productImage;
+//     }
+
+//     const update = await ProductsDetails.findOneAndUpdate(
+//       { _id: req.params._id },
+//       fieldvalues,
+
+//       { new: true }
+//     );
+//     res.json({ update, isOk: true });
+//   } catch (err) {
+//    return res.status(400).send(err);
+//   }
+// };
+
+ 
 exports.updateProductsDetails = async (req, res) => {
   try {
     const uploadDir = `${__basedir}/uploads/Products`;
@@ -276,26 +307,55 @@ exports.updateProductsDetails = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // console.log("req.file", req.file)
-    let productImage = req.file
-      ? await compressImage(req.file, uploadDir)
-      : null;
+    // Fetch the existing product document
+    const existingProduct = await ProductsDetails.findById(req.params._id);
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     let fieldvalues = { ...req.body };
-    if (productImage != null) {
+    let productImage = null;
+
+    // If a new image file is uploaded
+    if (req.file) {
+      productImage = await compressImage(req.file, uploadDir);
+
+      // Delete the old product image from the filesystem
+      if (existingProduct.productImage) {
+        const oldImagePath = path.join(
+          __basedir,
+          'uploads',
+          'Products',
+          path.basename(existingProduct.productImage)
+        );
+
+        fs.unlink(oldImagePath, (err) => {
+          if (err) {
+            console.error('Error deleting old product image:', err.message);
+          } else {
+            console.log('Old product image deleted:', oldImagePath);
+          }
+        });
+      }
+    }
+
+    if (productImage) {
       fieldvalues.productImage = productImage;
     }
 
     const update = await ProductsDetails.findOneAndUpdate(
       { _id: req.params._id },
-      fieldvalues,
-
+      { $set: fieldvalues },
       { new: true }
     );
+
     res.json({ update, isOk: true });
   } catch (err) {
-   return res.status(400).send(err);
+    return res.status(400).send(err);
   }
 };
+
+
 
 exports.removeProductsDetails = async (req, res) => {
   try {

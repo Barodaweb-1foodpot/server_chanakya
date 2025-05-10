@@ -142,24 +142,70 @@ exports.listOfferMasterByParams = async (req, res) => {
   }
 };
 
+// exports.updateOfferMaster = async (req, res) => {
+//   try {
+//     let logo = req.file
+//       ? `uploads/OfferMaster/${req.file.filename}`
+//       : null;
+//     let fieldvalues = { ...req.body };
+//     if (logo != null) {
+//       fieldvalues.logo = logo;
+//     }
+   
+//     const update = await OfferMaster.findOneAndUpdate(
+//       { _id: req.params._id },
+//       fieldvalues,
+//       { new: true }
+//     );
+//     res.json( {isOk: true,
+//       data: update,
+//       message: "Record updated successfully",});
+//   } catch (err) {
+//     res.status(400).send(err);
+//   }
+// };
+
+
 exports.updateOfferMaster = async (req, res) => {
   try {
-    let logo = req.file
-      ? `uploads/OfferMaster/${req.file.filename}`
-      : null;
+    const existingOffer = await OfferMaster.findById(req.params._id);
+    if (!existingOffer) {
+      return res.status(404).json({ message: "Offer not found" });
+    }
+
+    let logo = null;
+    if (req.file) {
+      logo = `uploads/OfferMaster/${req.file.filename}`;
+
+      // Remove old logo if it exists
+      if (existingOffer.logo) {
+        const oldLogoPath = path.join(__basedir, 'uploads', 'OfferMaster', path.basename(existingOffer.logo));
+        fs.unlink(oldLogoPath, (err) => {
+          if (err) {
+            console.error('Error deleting old logo:', err.message);
+          } else {
+            console.log('Old logo deleted:', oldLogoPath);
+          }
+        });
+      }
+    }
+
     let fieldvalues = { ...req.body };
     if (logo != null) {
       fieldvalues.logo = logo;
     }
-   
+
     const update = await OfferMaster.findOneAndUpdate(
       { _id: req.params._id },
       fieldvalues,
       { new: true }
     );
-    res.json( {isOk: true,
+
+    res.json({
+      isOk: true,
       data: update,
-      message: "Record updated successfully",});
+      message: "Record updated successfully",
+    });
   } catch (err) {
     res.status(400).send(err);
   }

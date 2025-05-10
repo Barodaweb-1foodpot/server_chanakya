@@ -153,6 +153,61 @@ exports.listCategoryMasterByParams = async (req, res) => {
   }
 };
 
+// exports.updateCategoryMaster = async (req, res) => {
+//   try {
+//     const uploadDir = `${__basedir}/uploads/CategoryMaster`;
+//     if (!fs.existsSync(uploadDir)) {
+//       fs.mkdirSync(uploadDir, { recursive: true });
+//     }
+
+    
+//     let fieldvalues = { ...req.body };
+//     let logo = null;
+//     let logoBackground = null;
+
+//     // Check for multiple files (logo and logoBackground) in the request
+//     if (req.files && req.files.length > 0) {
+//       for (const file of req.files) {
+//         console.log(file)
+//         if (file.fieldname === 'logo') {
+//           logo = file.filename ? await compressImage(file, uploadDir) : null;
+//         } else if (file.fieldname === 'logoBackground') {
+//           logoBackground = file.filename ? await compressImage(file, uploadDir) : null;
+//           console.log(logoBackground)
+//         }
+//       }
+//     }
+//     console.log(logoBackground)
+
+//     // Only update logo if a new logo is provided
+//     if (logo) {
+//       fieldvalues.logo = logo;
+//     }
+
+//     // Only update logoBackground if a new logoBackground is provided
+//     if (logoBackground) {
+//       fieldvalues.logoBackground = logoBackground;
+//     }
+//     console.log(fieldvalues)
+//     // Find the category by _id and update it with the new field values
+//     const update = await CategoryMaster.findOneAndUpdate(
+//       { _id: req.params._id },
+//       { $set: fieldvalues },  // Use $set to only update provided fields
+//       { new: true }  // Return the updated document
+//     );
+
+//     // Send response with the updated category
+//     res.json({
+//       isOk: true,
+//       data: update,
+//       message: "Record updated successfully",
+//     });
+//   } catch (err) {
+//     // Send error response in case of failure
+//     res.status(400).send(err);
+//   }
+// };
+ 
 exports.updateCategoryMaster = async (req, res) => {
   try {
     const uploadDir = `${__basedir}/uploads/CategoryMaster`;
@@ -160,50 +215,62 @@ exports.updateCategoryMaster = async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    
+    const category = await CategoryMaster.findById(req.params._id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
     let fieldvalues = { ...req.body };
     let logo = null;
     let logoBackground = null;
 
-    // Check for multiple files (logo and logoBackground) in the request
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        console.log(file)
-        if (file.fieldname === 'logo') {
-          logo = file.filename ? await compressImage(file, uploadDir) : null;
-        } else if (file.fieldname === 'logoBackground') {
-          logoBackground = file.filename ? await compressImage(file, uploadDir) : null;
-          console.log(logoBackground)
+        const filename = file.filename ? await compressImage(file, uploadDir) : null;
+
+        if (file.fieldname === 'logo' && filename) {
+          logo = filename;
+
+          // Remove old logo if it exists
+          if (category.logo) {
+            const oldLogoPath = path.join(__basedir, 'uploads', 'CategoryMaster', path.basename(category.logo));
+            fs.unlink(oldLogoPath, (err) => {
+              if (err) console.error('Error deleting old logo:', err.message);
+              else console.log('Old logo deleted:', oldLogoPath);
+            });
+          }
+        }
+
+        if (file.fieldname === 'logoBackground' && filename) {
+          logoBackground = filename;
+
+          // Remove old logoBackground if it exists
+          if (category.logoBackground) {
+            const oldBgPath = path.join(__basedir, 'uploads', 'CategoryMaster', path.basename(category.logoBackground));
+            fs.unlink(oldBgPath, (err) => {
+              if (err) console.error('Error deleting old logoBackground:', err.message);
+              else console.log('Old logoBackground deleted:', oldBgPath);
+            });
+          }
         }
       }
     }
-    console.log(logoBackground)
 
-    // Only update logo if a new logo is provided
-    if (logo) {
-      fieldvalues.logo = logo;
-    }
+    if (logo) fieldvalues.logo = logo;
+    if (logoBackground) fieldvalues.logoBackground = logoBackground;
 
-    // Only update logoBackground if a new logoBackground is provided
-    if (logoBackground) {
-      fieldvalues.logoBackground = logoBackground;
-    }
-    console.log(fieldvalues)
-    // Find the category by _id and update it with the new field values
     const update = await CategoryMaster.findOneAndUpdate(
       { _id: req.params._id },
-      { $set: fieldvalues },  // Use $set to only update provided fields
-      { new: true }  // Return the updated document
+      { $set: fieldvalues },
+      { new: true }
     );
 
-    // Send response with the updated category
     res.json({
       isOk: true,
       data: update,
       message: "Record updated successfully",
     });
   } catch (err) {
-    // Send error response in case of failure
     res.status(400).send(err);
   }
 };

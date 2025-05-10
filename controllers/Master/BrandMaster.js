@@ -240,32 +240,100 @@ exports.listBrandMasterByParams = async (req, res) => {
   }
 };
 
+// exports.updateBrandMaster = async (req, res) => {
+//   try {
+//     let fieldvalues = { ...req.body };
+
+//     const additionalLinkFiles = {};
+
+//     req.files.forEach(file => {
+//       if (file.fieldname === 'logo') {
+//         fieldvalues.logo = `uploads/BrandMaster/${file.filename}`;
+//       } else if (file.fieldname.startsWith('brandBrochure')) {
+//         const index = parseInt(file.fieldname.match(/\d+/)[0]);
+//         additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
+//       }
+//     });
+//     console.log(fieldvalues.brandBrochure)
+//     const extractedObjectsAdditionalLink = fieldvalues.brandBrochure ? fieldvalues.brandBrochure.map((item, index) => {
+//       console.log("---------------", item.categoryName.split(","))
+//       return {
+//         categoryName: item.categoryName.split(","),
+//         title: item.title,
+//         // Ensure linkdoc is either a string or null
+//         linkdoc: additionalLinkFiles[index] || item.linkdoc || null
+//       };
+//     }) : [];
+//     console.log(extractedObjectsAdditionalLink)
+//     if (extractedObjectsAdditionalLink) {
+//       fieldvalues.brandBrochure = extractedObjectsAdditionalLink;
+//     }
+
+//     const update = await BrandMaster.findOneAndUpdate(
+//       { _id: req.params._id },
+//       fieldvalues,
+//       { new: true }
+//     );
+
+//     res.json({
+//       isOk: true,
+//       data: update,
+//       message: "Record updated successfully",
+//     });
+//   } catch (err) {
+//     res.status(400).send(err);
+//   }
+// };
+
 exports.updateBrandMaster = async (req, res) => {
   try {
-    let fieldvalues = { ...req.body };
+    const existingBrand = await BrandMaster.findById(req.params._id);
+    if (!existingBrand) {
+      return res.status(404).json({ message: "Brand not found" });
+    }
 
+    let fieldvalues = { ...req.body };
     const additionalLinkFiles = {};
 
     req.files.forEach(file => {
       if (file.fieldname === 'logo') {
+        // Delete old logo if it exists
+        if (existingBrand.logo) {
+          const oldLogoPath = path.join(__basedir, 'uploads', 'BrandMaster', path.basename(existingBrand.logo));
+          fs.unlink(oldLogoPath, (err) => {
+            if (err) console.error('Error deleting old logo:', err.message);
+            else console.log('Old logo deleted:', oldLogoPath);
+          });
+        }
+
         fieldvalues.logo = `uploads/BrandMaster/${file.filename}`;
       } else if (file.fieldname.startsWith('brandBrochure')) {
         const index = parseInt(file.fieldname.match(/\d+/)[0]);
         additionalLinkFiles[index] = `uploads/BrandMaster/${file.filename}`;
+
+        // Delete old brochure if it exists
+        const oldBrochure = existingBrand.brandBrochure?.[index]?.linkdoc;
+        if (oldBrochure) {
+          const oldBrochurePath = path.join(__basedir, 'uploads', 'BrandMaster', path.basename(oldBrochure));
+          fs.unlink(oldBrochurePath, (err) => {
+            if (err) console.error('Error deleting old brochure PDF:', err.message);
+            else console.log('Old brochure PDF deleted:', oldBrochurePath);
+          });
+        }
       }
     });
-    console.log(fieldvalues.brandBrochure)
-    const extractedObjectsAdditionalLink = fieldvalues.brandBrochure ? fieldvalues.brandBrochure.map((item, index) => {
-      console.log("---------------", item.categoryName.split(","))
-      return {
-        categoryName: item.categoryName.split(","),
-        title: item.title,
-        // Ensure linkdoc is either a string or null
-        linkdoc: additionalLinkFiles[index] || item.linkdoc || null
-      };
-    }) : [];
-    console.log(extractedObjectsAdditionalLink)
-    if (extractedObjectsAdditionalLink) {
+
+    const extractedObjectsAdditionalLink = fieldvalues.brandBrochure
+      ? fieldvalues.brandBrochure.map((item, index) => {
+          return {
+            categoryName: item.categoryName.split(','),
+            title: item.title,
+            linkdoc: additionalLinkFiles[index] || item.linkdoc || null
+          };
+        })
+      : [];
+
+    if (extractedObjectsAdditionalLink.length > 0) {
       fieldvalues.brandBrochure = extractedObjectsAdditionalLink;
     }
 
